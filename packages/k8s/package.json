@@ -23,6 +23,8 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.27.2",
+    "@babel/preset-typescript": "^7.27.1",
     "@types/jest": "^27.4.1",
     "@types/node": "^17.0.23",
     "@vercel/ncc": "^0.33.4",
