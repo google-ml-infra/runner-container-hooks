@@ -127,7 +127,10 @@ export async function createPod(
     mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
 
-  return await k8sApi.createNamespacedPod({ namespace: namespace(), body: appPod })
+  return await k8sApi.createNamespacedPod({
+    namespace: namespace(),
+    body: appPod
+  })
 }
 
 export async function createJob(
@@ -182,8 +185,10 @@ export async function createJob(
     }
   }
 
-
-  return await k8sBatchV1Api.createNamespacedJob({ namespace: namespace(), body: job })
+  return await k8sBatchV1Api.createNamespacedJob({
+    namespace: namespace(),
+    body: job
+  })
 }
 
 export async function getContainerJobPodName(jobName: string): Promise<string> {
@@ -308,7 +313,10 @@ export async function createDockerSecret(
     )
   }
 
-  return await k8sApi.createNamespacedSecret({ namespace: namespace(), body: secret })
+  return await k8sApi.createNamespacedSecret({
+    namespace: namespace(),
+    body: secret
+  })
 }
 
 export async function createSecretForEnvs(envs: {
@@ -337,7 +345,10 @@ export async function createSecretForEnvs(envs: {
 }
 
 export async function deleteSecret(secretName: string): Promise<void> {
-  await k8sApi.deleteNamespacedSecret({ name: secretName, namespace: namespace() })
+  await k8sApi.deleteNamespacedSecret({
+    name: secretName,
+    namespace: namespace()
+  })
 }
 
 export async function pruneSecrets(): Promise<void> {
@@ -410,7 +421,10 @@ async function getPodPhase(podName: string): Promise<PodPhase> {
     PodPhase.FAILED,
     PodPhase.UNKNOWN
   ])
-  const pod = await k8sApi.readNamespacedPod({ name: podName, namespace: namespace() })
+  const pod = await k8sApi.readNamespacedPod({
+    name: podName,
+    namespace: namespace()
+  })
   if (!pod.status?.phase || !podPhaseLookup.has(pod.status.phase)) {
     return PodPhase.UNKNOWN
   }
@@ -418,7 +432,10 @@ async function getPodPhase(podName: string): Promise<PodPhase> {
 }
 
 async function isJobSucceeded(jobName: string): Promise<boolean> {
-  const job = await k8sBatchV1Api.readNamespacedJob({ name: jobName, namespace: namespace() })
+  const job = await k8sBatchV1Api.readNamespacedJob({
+    name: jobName,
+    namespace: namespace()
+  })
   if (job.status?.failed) {
     throw new Error(`job ${jobName} has failed`)
   }
@@ -458,16 +475,17 @@ export async function prunePods(): Promise<void> {
   }
 
   await Promise.all(
-    podList.items.map(
-      pod => pod.metadata?.name && deletePod(pod.metadata.name)
-    )
+    podList.items.map(pod => pod.metadata?.name && deletePod(pod.metadata.name))
   )
 }
 
 export async function getPodStatus(
   name: string
 ): Promise<k8s.V1PodStatus | undefined> {
-  const pod = await k8sApi.readNamespacedPod({ name: name, namespace: namespace() })
+  const pod = await k8sApi.readNamespacedPod({
+    name: name,
+    namespace: namespace()
+  })
   return pod.status
 }
 
@@ -483,7 +501,9 @@ export async function isAuthPermissionsOK(): Promise<boolean> {
       sar.spec.resourceAttributes.group = resource.group
       sar.spec.resourceAttributes.resource = resource.resource
       sar.spec.resourceAttributes.subresource = resource.subresource
-      asyncs.push(k8sAuthorizationV1Api.createSelfSubjectAccessReview({ body: sar }))
+      asyncs.push(
+        k8sAuthorizationV1Api.createSelfSubjectAccessReview({ body: sar })
+      )
     }
   }
   const responses = await Promise.all(asyncs)
@@ -513,7 +533,10 @@ export async function isPodContainerAlpine(
 }
 
 async function getCurrentNodeName(): Promise<string> {
-  const resp = await k8sApi.readNamespacedPod({ name: getRunnerPodName(), namespace: namespace() })
+  const resp = await k8sApi.readNamespacedPod({
+    name: getRunnerPodName(),
+    namespace: namespace()
+  })
 
   const nodeName = resp.spec?.nodeName
   if (!nodeName) {
