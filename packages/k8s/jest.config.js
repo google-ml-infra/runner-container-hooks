@@ -6,7 +6,7 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/*-test.ts'],
   testRunner: 'jest-circus/runner',
-  transformIgnorePatterns: ['/node_modules/(?!(@kubernetes/client-node|openid-client|oauth4webapi|jose)/)'],
+  transformIgnorePatterns: ['/node_modules/(?!(@kubernetes/client-node|openid-client|oauth4webapi|jose)/)', '/hooklib/lib/'],
   transform: {
     '^.+\\.(t|j)sx?$': [
       'ts-jest',
