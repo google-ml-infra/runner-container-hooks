@@ -45,7 +45,7 @@ const keepaliveOptions = {
  */
 function executeScriptHandler(
   call: grpc.ServerWritableStream<ScriptRequest, ScriptResponse>
-) {
+): void {
   const script = call.request.script as string
   const process = exec(script)
 
@@ -66,7 +66,7 @@ function executeScriptHandler(
   })
 }
 
-function main() {
+function main(): void {
   const server = new grpc.Server(keepaliveOptions)
   server.addService(scriptExecutor.ScriptExecutor.service, {
     ExecuteScript: executeScriptHandler
