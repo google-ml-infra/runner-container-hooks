@@ -48,30 +48,36 @@ export class TestHelper {
     try {
       await this.cleanupK8sResources()
       fs.rmSync(this.tempDirPath, { recursive: true })
-    } catch { }
+    } catch {}
   }
   public async cleanupK8sResources() {
     await k8sApi
-      .deleteNamespacedPersistentVolumeClaim(
-        {
-          name: `${this.podName}-work`,
-          namespace: 'default',
-          gracePeriodSeconds: 0
-        }
-      )
-      .catch(e => { })
-    await k8sApi.deletePersistentVolume({ name: `${this.podName}-pv` }).catch(e => { })
-    await k8sStorageApi.deleteStorageClass({ name: 'local-storage' }).catch(e => { })
+      .deleteNamespacedPersistentVolumeClaim({
+        name: `${this.podName}-work`,
+        namespace: 'default',
+        gracePeriodSeconds: 0
+      })
+      .catch(e => {})
     await k8sApi
-      .deleteNamespacedPod({ name: this.podName, namespace: 'default', gracePeriodSeconds: 0 })
-      .catch(e => { })
+      .deletePersistentVolume({ name: `${this.podName}-pv` })
+      .catch(e => {})
+    await k8sStorageApi
+      .deleteStorageClass({ name: 'local-storage' })
+      .catch(e => {})
+    await k8sApi
+      .deleteNamespacedPod({
+        name: this.podName,
+        namespace: 'default',
+        gracePeriodSeconds: 0
+      })
+      .catch(e => {})
     await k8sApi
       .deleteNamespacedPod({
         name: `${this.podName}-workflow`,
         namespace: 'default',
         gracePeriodSeconds: 0
       })
-      .catch(e => { })
+      .catch(e => {})
   }
   public createFile(fileName?: string): string {
     const filePath = `${this.tempDirPath}/${fileName || uuidv4()}`
@@ -146,7 +152,10 @@ export class TestHelper {
         }
       }
     }
-    await k8sApi.createNamespacedPersistentVolumeClaim({ namespace: 'default', body: volumeClaim })
+    await k8sApi.createNamespacedPersistentVolumeClaim({
+      namespace: 'default',
+      body: volumeClaim
+    })
   }
 
   public getPrepareJobDefinition(): HookData {
