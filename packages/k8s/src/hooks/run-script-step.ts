@@ -6,7 +6,12 @@ import * as grpc from '@grpc/grpc-js'
 
 import { RunScriptStepArgs } from 'hooklib'
 import { execPodStep, getPodStatus } from '../k8s'
-import { fixArgs, useScriptExecutor, writeEntryPointScript } from '../k8s/utils'
+import {
+  fixArgs,
+  sleep,
+  useScriptExecutor,
+  writeEntryPointScript
+} from '../k8s/utils'
 import { GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
 import { join } from 'path'
 
@@ -21,8 +26,6 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 const protoDescriptor = grpc.loadPackageDefinition(packageDefinition) as any
 const scriptExecutor = protoDescriptor.script_executor
 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-
 /**
  * Invoke GRPC server at ip_address:grpc_port to run a command.
  * Stream output and error from the command to the console.
@@ -31,7 +34,7 @@ export async function runScriptByGrpc(
   command: string,
   ip: string,
   grpc_port = GRPC_SCRIPT_EXECUTOR_PORT
-) {
+): Promise<void> {
   const client = new scriptExecutor.ScriptExecutor(
     `${ip}:${grpc_port}`,
     // TODO(quoct): Use mTLS with certificates here.
@@ -66,16 +69,17 @@ export async function runScriptByGrpc(
       // Half a second wait in case the data event with the exit code did not get triggered yet.
       await sleep(500)
       process.stdout.write(`Job exit code is ${exitCode}.`)
-      if (exitCode == 0) {
+      if (exitCode === 0) {
         resolve()
       } else {
-        reject(`Job failed with exit code ${exitCode}.`)
+        reject(new Error(`Job failed with exit code ${exitCode}.`))
       }
     })
 
     call.on('error', (err: any) => {
-      process.stdout.write(`Error execing ${command}:`, err)
-      reject()
+      const errorMessage = `Error execing ${command}: ${err}`
+      process.stdout.write(errorMessage)
+      reject(new Error(errorMessage))
     })
   })
 }
