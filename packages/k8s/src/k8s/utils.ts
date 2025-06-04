@@ -276,7 +276,7 @@ export function readExtensionFromFile(): k8s.V1PodTemplateSpec | undefined {
 }
 
 export function useScriptExecutor(): boolean {
-  return process.env[ENV_USE_SCRIPT_EXECUTOR] == 'true'
+  return process.env[ENV_USE_SCRIPT_EXECUTOR] === 'true'
 }
 
 export function useKubeScheduler(): boolean {
