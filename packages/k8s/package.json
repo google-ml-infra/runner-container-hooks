@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest --runInBand",
     "build": "tsc && npx ncc build",
-    "postbuild": "cp ../proto/script_executor.proto ./dist/proto/script_executor.proto",
+    "postbuild": "mkdir ./dist/hooks/proto && cp ../proto/script_executor.proto ./dist/hooks/proto/script_executor.proto && mkdir ./lib/hooks/proto && cp ../proto/script_executor.proto ./lib/hooks/proto/script_executor.proto",
     "format": "prettier --write '**/*.ts'",
     "format-check": "prettier --check '**/*.ts'",
     "lint": "eslint src/**/*.ts"
