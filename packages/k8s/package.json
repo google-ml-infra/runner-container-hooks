@@ -4,7 +4,7 @@
   "description": "",
   "main": "lib/index.js",
   "scripts": {
-    "test": "jest --runInBand",
+    "test": "mkdir ./src/hooks/proto && cp ../proto/script_executor.proto ./src/hooks/proto/script_executor.proto && jest --runInBand",
     "build": "tsc && npx ncc build",
     "postbuild": "mkdir ./dist/hooks/proto && cp ../proto/script_executor.proto ./dist/hooks/proto/script_executor.proto && mkdir ./lib/hooks/proto && cp ../proto/script_executor.proto ./lib/hooks/proto/script_executor.proto",
     "format": "prettier --write '**/*.ts'",
