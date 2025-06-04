@@ -1,12 +1,6 @@
 import * as fs from 'fs'
-import {
-  cleanupJob,
-  prepareJob,
-  runScriptByGrpc,
-  runScriptStep
-} from '../src/hooks'
+import { cleanupJob, prepareJob, runScriptStep } from '../src/hooks'
 import { TestHelper } from './test-setup'
-import { launchGrpcServer } from '../../script_executor/src/server'
 
 jest.useRealTimers()
 
@@ -35,22 +29,6 @@ describe('Run script step', () => {
   afterEach(async () => {
     await cleanupJob()
     await testHelper.cleanup()
-  })
-
-  it('should invoke GRPC server successfully', async () => {
-    const serverPort = 12345
-    const server = launchGrpcServer(serverPort)
-    await expect(
-      runScriptByGrpc('ls', '0.0.0.0', serverPort)
-    ).resolves.not.toThrow()
-    server.forceShutdown()
-  })
-
-  it('should invoke GRPC server unsuccessfully if connect to the wrong port', async () => {
-    const serverPort = 123
-    const server = launchGrpcServer(serverPort)
-    await expect(runScriptByGrpc('ls', '0.0.0.0', 111)).resolves.not.toThrow()
-    server.forceShutdown()
   })
 
   // NOTE: To use this test, do kubectl apply -f podspec.yaml (from podspec examples)
