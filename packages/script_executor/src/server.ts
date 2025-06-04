@@ -24,7 +24,7 @@ const protoDescriptor = grpc.loadPackageDefinition(
   packageDefinition
 ) as unknown as ProtoGrpcType
 const scriptExecutor = protoDescriptor.script_executor
-const KEEP_ALIVE_OPTIONS = {
+const keepaliveOptions = {
   // If a client is idle for 30 seconds, send a GOAWAY
   'grpc.max_connection_idle_ms': 30_000,
   // If any connection is alive for more than 1 day, send a GOAWAY
@@ -66,10 +66,7 @@ function executeScriptHandler(
   })
 }
 
-export function launchGrpcServer(
-  port = 50051,
-  keepaliveOptions = KEEP_ALIVE_OPTIONS
-): grpc.Server {
+function main(): void {
   const server = new grpc.Server(keepaliveOptions)
   server.addService(scriptExecutor.ScriptExecutor.service, {
     ExecuteScript: executeScriptHandler
@@ -77,17 +74,13 @@ export function launchGrpcServer(
   // TODO(quoct): Create and pass in a cert here to improve security.
   // As of now, only other job in the cluster can access it but we need to improve it.
   server.bindAsync(
-    `0.0.0.0:${port}`,
-    grpc.ServerCredentials.createInsecure(), // TODO(quoct): Change this to SSL.
+    '0.0.0.0:50051',
+    grpc.ServerCredentials.createSsl(null, [], false),
     () => {
-      console.log(`Server running on port ${port}`)
+      server.start()
+      console.log('Server running on port 50051')
     }
   )
-  return server
-}
-
-function main(): void {
-  launchGrpcServer()
 }
 
 main()
