@@ -46,6 +46,7 @@ export async function runScriptByGrpc(
     }
   )
 
+  // TODO(quoct): Add logic to prevent duplicate execution using the `id` field.
   const call = client.executeScript({ script: command })
   await new Promise<void>(async function (resolve, reject) {
     let exitCode = -1
@@ -107,7 +108,7 @@ export async function runScriptStep(
       if (status?.phase === 'Succeeded') {
         throw new Error(`Failed to get pod ${podName} status`)
       }
-      if (status?.podIP == undefined) {
+      if (status?.podIP === undefined) {
         throw new Error(`Failed to get pod ${podName} IP`)
       }
 
