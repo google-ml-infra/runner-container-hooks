@@ -14,7 +14,6 @@ export const DEFAULT_CONTAINER_ENTRY_POINT = 'tail'
 
 export const ENV_HOOK_TEMPLATE_PATH = 'ACTIONS_RUNNER_CONTAINER_HOOK_TEMPLATE'
 export const ENV_USE_KUBE_SCHEDULER = 'ACTIONS_RUNNER_USE_KUBE_SCHEDULER'
-export const ENV_USE_SCRIPT_EXECUTOR = 'ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'
 
 export function containerVolumes(
   userMountVolumes: Mount[] = [],
@@ -275,10 +274,6 @@ export function readExtensionFromFile(): k8s.V1PodTemplateSpec | undefined {
   return doc as k8s.V1PodTemplateSpec
 }
 
-export function useScriptExecutor(): boolean {
-  return process.env[ENV_USE_SCRIPT_EXECUTOR] === 'true'
-}
-
 export function useKubeScheduler(): boolean {
   return process.env[ENV_USE_KUBE_SCHEDULER] === 'true'
 }
@@ -303,8 +298,4 @@ function mergeLists<T>(base?: T[], from?: T[]): T[] {
 
 export function fixArgs(args: string[]): string[] {
   return shlex.split(args.join(' '))
-}
-
-export async function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }
