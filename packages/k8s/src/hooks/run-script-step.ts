@@ -23,17 +23,17 @@ const scriptExecutor = protoDescriptor.script_executor
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-export async function runScriptByGrpc(command: string, state) {
-  const status = await getPodStatus(state.jobPod)
-  if (status?.phase === 'Succeeded') {
-    throw new Error(`Failed to get pod ${state.jobPod} status`)
-  }
-  if (status?.podIP == undefined) {
-    throw new Error(`Failed to get pod ${state.jobPod} IP`)
-  }
-
+/**
+ * Invoke GRPC server at ip_address:grpc_port to run a command.
+ * Stream output and error from the command to the console.
+ */
+export async function runScriptByGrpc(
+  command: string,
+  ip: string,
+  grpc_port = GRPC_SCRIPT_EXECUTOR_PORT
+) {
   const client = new scriptExecutor.ScriptExecutor(
-    `${status?.podIP}:${GRPC_SCRIPT_EXECUTOR_PORT}`,
+    `${ip}:${grpc_port}`,
     // TODO(quoct): Use mTLS with certificates here.
     grpc.credentials.createInsecure(),
     {
@@ -54,17 +54,17 @@ export async function runScriptByGrpc(command: string, state) {
         exitCode = response.code
       }
       if (response.hasOwnProperty('output')) {
-        console.log(response.output)
+        process.stdout.write(response.output)
       }
       if (response.hasOwnProperty('error')) {
-        console.error(response.error)
+        process.stderr.write(response.error)
       }
     })
 
     call.on('end', async () => {
       // Half a second wait in case the data event with the exit code did not get triggered yet.
       await sleep(500)
-      console.log(`Job exit code is ${exitCode}.`)
+      process.stdout.write(`Job exit code is ${exitCode}.`)
       if (exitCode == 0) {
         resolve()
       } else {
@@ -73,7 +73,7 @@ export async function runScriptByGrpc(command: string, state) {
     })
 
     call.on('error', (err: any) => {
-      console.error(`Error execing ${command}:`, err)
+      process.stdout.write(`Error execing ${command}:`, err)
       reject()
     })
   })
@@ -95,17 +95,27 @@ export async function runScriptStep(
 
   args.entryPoint = 'sh'
   args.entryPointArgs = ['-e', containerPath]
+  const podName = state.jobPod
   try {
     if (useScriptExecutor()) {
       const command = fixArgs([args.entryPoint, ...args.entryPointArgs]).join(
         ' '
       )
       core.debug(`exec command ${command}`)
-      await runScriptByGrpc(command, state)
+
+      const status = await getPodStatus(podName)
+      if (status?.phase === 'Succeeded') {
+        throw new Error(`Failed to get pod ${podName} status`)
+      }
+      if (status?.podIP == undefined) {
+        throw new Error(`Failed to get pod ${podName} IP`)
+      }
+
+      await runScriptByGrpc(command, status.podIP)
     } else {
       await execPodStep(
         [args.entryPoint, ...args.entryPointArgs],
-        state.jobPod,
+        podName,
         JOB_CONTAINER_NAME
       )
     }
