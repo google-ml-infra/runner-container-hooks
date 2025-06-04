@@ -1,10 +1,85 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import * as fs from 'fs'
 import * as core from '@actions/core'
+import * as protoLoader from '@grpc/proto-loader';
+import * as grpc from '@grpc/grpc-js';
+
 import { RunScriptStepArgs } from 'hooklib'
-import { execPodStep } from '../k8s'
-import { writeEntryPointScript } from '../k8s/utils'
-import { JOB_CONTAINER_NAME } from './constants'
+import { execPodStep, getPodStatus } from '../k8s'
+import { fixArgs, useScriptExecutor, writeEntryPointScript } from '../k8s/utils'
+import { GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
+import { join } from 'path'
+
+
+const PROTO_PATH = join(__dirname, './proto/script_executor.proto');
+const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+  keepCase: true,
+  longs: String,
+  enums: String,
+  defaults: true,
+  oneofs: true,
+});
+const protoDescriptor = grpc.loadPackageDefinition(packageDefinition) as any;
+const scriptExecutor = protoDescriptor.script_executor;
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+export async function runScriptByGrpc(command: string, state) {
+  const status = await getPodStatus(state.jobPod)
+  if (status?.phase === 'Succeeded') {
+    throw new Error(`Failed to get pod ${state.jobPod} status`);
+  }
+  if (status?.podIP == undefined) {
+    throw new Error(`Failed to get pod ${state.jobPod} IP`);
+  }
+
+  const client = new scriptExecutor.ScriptExecutor(
+    `${status?.podIP}:${GRPC_SCRIPT_EXECUTOR_PORT}`,
+    // TODO(quoct): Use mTLS with certificates here.
+    grpc.credentials.createInsecure(),
+    {
+      // Ping the server every 10 seconds to ensure the connection is still active
+      'grpc.keepalive_time_ms': 10_000,
+      // Wait 5 seconds for the ping ack before assuming the connection is dead
+      'grpc.keepalive_timeout_ms': 5_000,
+      // send pings even without active streams
+      'grpc.keepalive_permit_without_calls': 1
+    }
+  );
+
+  const call = client.executeScript({script: command});
+  await new Promise<void>(async function (resolve, reject) {
+    let exitCode = -1;
+    call.on('data', (response: any) => {
+      if (response.hasOwnProperty('code')) {
+        exitCode = response.code;
+      }
+      if (response.hasOwnProperty('output')) {
+        console.log(response.output);
+      }
+      if (response.hasOwnProperty('error')) {
+        console.error(response.error);
+      }
+    });
+  
+    call.on('end', async () => {
+      // Half a second wait in case the data event with the exit code did not get triggered yet.
+      await sleep(500);
+      console.log(`Job exit code is ${exitCode}.`);
+      if (exitCode == 0) {
+        resolve();
+      } else {
+        reject(`Job failed with exit code ${exitCode}.`);
+      }
+    });
+  
+    call.on('error', (err: any) => {
+      console.error(`Error execing ${command}:`, err);
+      reject();
+    });  
+  });
+
+}
 
 export async function runScriptStep(
   args: RunScriptStepArgs,
@@ -23,11 +98,17 @@ export async function runScriptStep(
   args.entryPoint = 'sh'
   args.entryPointArgs = ['-e', containerPath]
   try {
-    await execPodStep(
-      [args.entryPoint, ...args.entryPointArgs],
-      state.jobPod,
-      JOB_CONTAINER_NAME
-    )
+    if (useScriptExecutor()) {
+      const command = fixArgs([args.entryPoint, ...args.entryPointArgs]).join(' ');
+      core.debug(`exec command ${command}`);
+      await runScriptByGrpc(command, state);  
+    } else {
+      await execPodStep(
+        [args.entryPoint, ...args.entryPointArgs],
+        state.jobPod,
+        JOB_CONTAINER_NAME
+      )  
+    }
   } catch (err) {
     core.debug(`execPodStep failed: ${JSON.stringify(err)}`)
     const message = (err as any)?.response?.body?.message || err
