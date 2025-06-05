@@ -110,6 +110,7 @@ export async function createPod(
   executorVolumeMount.mountPath = "/script_executor"
   jobContainer?.volumeMounts?.push(executorVolumeMount)
   initContainer.volumeMounts.push(executorVolumeMount)
+  core.debug(`quoctt service container is ${JSON.stringify(initContainer)}`)
 
   appPod.spec.initContainers = [initContainer]
   const nodeName = await getCurrentNodeName()
