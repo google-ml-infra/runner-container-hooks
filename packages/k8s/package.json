@@ -7,7 +7,7 @@
     "test": "mkdir -p ./src/hooks/proto && cp ../proto/script_executor.proto ./src/hooks/proto/script_executor.proto && jest --runInBand",
     "posttest": "rm -rf ./src/hooks/proto",
     "build": "tsc && npx ncc build",
-    "postbuild": "mkdir -p ./dist/hooks/proto && cp ../proto/script_executor.proto ./dist/hooks/proto/script_executor.proto && mkdir -p ./lib/hooks/proto && cp ../proto/script_executor.proto ./lib/hooks/proto/script_executor.proto",
+    "postbuild": "mkdir -p ./dist/proto && cp ../proto/script_executor.proto ./dist/proto/script_executor.proto",
     "format": "prettier --write '**/*.ts'",
     "format-check": "prettier --check '**/*.ts'",
     "lint": "eslint src/**/*.ts"
