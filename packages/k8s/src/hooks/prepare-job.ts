@@ -69,6 +69,7 @@ export async function prepareJob(
     throw new Error('No containers exist, skipping hook invocation')
   }
 
+  core.debug("quoct creating container");
   let createdPod: k8s.V1Pod | undefined = undefined
   try {
     createdPod = await createPod(

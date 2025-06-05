@@ -95,6 +95,23 @@ export async function createPod(
   appPod.spec.containers = containers
   appPod.spec.restartPolicy = 'Never'
 
+  appPod.spec.volumes
+
+  const initContainer = new k8s.V1Container()
+  initContainer.name = "grpc-server"
+  initContainer.image = "node:22.16.0-alpine3.22"
+  initContainer.command = ["sh"]
+  initContainer.args = ["-c", `echo "Installing script executor"; npm i ml-velocity-script-executor; cp -r dist /script_executor; echo "File copied successfully. Init container finished.`]
+  initContainer.volumeMounts = []
+  appPod.spec.initContainers = [initContainer]
+
+  const executorVolumeMount = new k8s.V1VolumeMount()
+  executorVolumeMount.name = "script_executor"
+  executorVolumeMount.mountPath = "/script_executor"
+  jobContainer?.volumeMounts?.push(executorVolumeMount)
+  initContainer.volumeMounts.push(executorVolumeMount)
+
+  appPod.spec.initContainers = [initContainer]
   const nodeName = await getCurrentNodeName()
   if (useKubeScheduler()) {
     appPod.spec.affinity = await getPodAffinity(nodeName)
@@ -106,6 +123,10 @@ export async function createPod(
     {
       name: 'work',
       persistentVolumeClaim: { claimName }
+    },
+    {
+      name: 'script_executor',
+      emptyDir: new k8s.V1EmptyDirVolumeSource()
     }
   ]
 
@@ -171,7 +192,7 @@ export async function createJob(
     {
       name: 'work',
       persistentVolumeClaim: { claimName }
-    }
+    },
   ]
 
   if (extension) {
