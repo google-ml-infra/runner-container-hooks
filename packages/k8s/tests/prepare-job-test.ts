@@ -14,7 +14,6 @@ import { getPodByName } from '../src/k8s'
 import { V1Container } from '@kubernetes/client-node'
 import * as yaml from 'js-yaml'
 import { JOB_CONTAINER_NAME } from '../src/hooks/constants'
-import { ENV_USE_SCRIPT_EXECUTOR } from '../dist/k8s/utils'
 
 jest.useRealTimers()
 
@@ -49,7 +48,7 @@ describe('Prepare job', () => {
   })
 
   it('should generate initContainer if script executor is used', async () => {
-    process.env[ENV_USE_SCRIPT_EXECUTOR] = 'true'
+    process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'true'
     try {
       await expect(
         prepareJob(prepareJobData.args, prepareJobOutputFilePath)
@@ -73,7 +72,7 @@ describe('Prepare job', () => {
         SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
       )
     } finally {
-      process.env[ENV_USE_SCRIPT_EXECUTOR] = 'false'
+      process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
     }
   })
 
