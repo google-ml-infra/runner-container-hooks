@@ -15,7 +15,9 @@ import {
   mergePodSpecWithOptions,
   mergeObjectMeta,
   useKubeScheduler,
-  fixArgs
+  fixArgs,
+  createScriptExecutorContainer,
+  useScriptExecutor
 } from './utils'
 
 const kc = new k8s.KubeConfig()
@@ -95,25 +97,18 @@ export async function createPod(
   appPod.spec.containers = containers
   appPod.spec.restartPolicy = 'Never'
 
-  appPod.spec.volumes
-
-  const initContainer = new k8s.V1Container()
-  initContainer.name = "grpc-server"
-  initContainer.image = "node:22.16.0-alpine3.22"
-  initContainer.workingDir = "/app"
-  initContainer.command = ["sh"]
-  initContainer.args = ["-c", `npm i ml-velocity-script-executor; cp -r ./node_modules/ml-velocity-script-executor/dist /script_executor;`]
-  initContainer.volumeMounts = []
-  appPod.spec.initContainers = [initContainer]
-
   const executorVolumeMount = new k8s.V1VolumeMount()
-  executorVolumeMount.name = "script-executor"
-  executorVolumeMount.mountPath = "/script_executor"
-  jobContainer?.volumeMounts?.push(executorVolumeMount)
-  initContainer.volumeMounts.push(executorVolumeMount)
-  core.debug(`quoctt service container is ${JSON.stringify(initContainer)}`)
+  executorVolumeMount.name = 'script-executor'
+  executorVolumeMount.mountPath = '/script_executor'
 
-  appPod.spec.initContainers = [initContainer]
+  if (useScriptExecutor()) {
+    core.debug('creating init container to install script executor.')
+    const initContainer = createScriptExecutorContainer(executorVolumeMount)
+    appPod.spec.initContainers = [initContainer]
+
+    jobContainer?.volumeMounts?.push(executorVolumeMount)
+  }
+
   const nodeName = await getCurrentNodeName()
   if (useKubeScheduler()) {
     appPod.spec.affinity = await getPodAffinity(nodeName)
@@ -194,7 +189,7 @@ export async function createJob(
     {
       name: 'work',
       persistentVolumeClaim: { claimName }
-    },
+    }
   ]
 
   if (extension) {

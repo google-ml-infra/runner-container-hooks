@@ -7,12 +7,14 @@ import {
   ENV_HOOK_TEMPLATE_PATH,
   ENV_USE_KUBE_SCHEDULER,
   generateContainerName,
-  readExtensionFromFile
+  SCRIPT_EXECUTOR_ENTRY_POINT,
+  SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
 } from '../src/k8s/utils'
 import { getPodByName } from '../src/k8s'
 import { V1Container } from '@kubernetes/client-node'
 import * as yaml from 'js-yaml'
 import { JOB_CONTAINER_NAME } from '../src/hooks/constants'
+import { ENV_USE_SCRIPT_EXECUTOR } from '../dist/k8s/utils'
 
 jest.useRealTimers()
 
@@ -44,6 +46,35 @@ describe('Prepare job', () => {
     await prepareJob(prepareJobData.args, prepareJobOutputFilePath)
     const content = fs.readFileSync(prepareJobOutputFilePath)
     expect(() => JSON.parse(content.toString())).not.toThrow()
+  })
+
+  it('should generate initContainer if script executor is used', async () => {
+    process.env[ENV_USE_SCRIPT_EXECUTOR] = 'true'
+    try {
+      await expect(
+        prepareJob(prepareJobData.args, prepareJobOutputFilePath)
+      ).resolves.not.toThrow()
+
+      const content = JSON.parse(
+        fs.readFileSync(prepareJobOutputFilePath).toString()
+      )
+
+      const got = await getPodByName(content.state.jobPod)
+      expect(got.spec?.initContainers).toHaveLength(1)
+      expect(got.spec?.initContainers!![0].volumeMounts).toHaveLength(1)
+      expect(got.spec?.initContainers!![0].volumeMounts!![0].mountPath).toEqual(
+        '/script_executor'
+      )
+
+      expect(got.spec?.containers[0].command).toEqual(
+        SCRIPT_EXECUTOR_ENTRY_POINT
+      )
+      expect(got.spec?.containers[0].args).toEqual(
+        SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+      )
+    } finally {
+      process.env[ENV_USE_SCRIPT_EXECUTOR] = 'false'
+    }
   })
 
   it('should prepare job with absolute path for userVolumeMount', async () => {

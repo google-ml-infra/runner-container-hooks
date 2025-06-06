@@ -24,7 +24,10 @@ import {
   mergeContainerWithOptions,
   readExtensionFromFile,
   PodPhase,
-  fixArgs
+  fixArgs,
+  useScriptExecutor,
+  SCRIPT_EXECUTOR_ENTRY_POINT,
+  SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
 } from '../k8s/utils'
 import { CONTAINER_EXTENSION_PREFIX, JOB_CONTAINER_NAME } from './constants'
 
@@ -69,7 +72,6 @@ export async function prepareJob(
     throw new Error('No containers exist, skipping hook invocation')
   }
 
-  core.debug("quoctt creating container");
   let createdPod: k8s.V1Pod | undefined = undefined
   try {
     createdPod = await createPod(
@@ -204,12 +206,12 @@ export function createContainerSpec(
     container.entryPointArgs = DEFAULT_CONTAINER_ENTRY_POINT_ARGS
   }
 
-  // Starting the server.
-  container.entryPoint = "/__e/node20/bin/node"
-  container.entryPointArgs = ["/script_executor/dist/index.js"]
-
-  core.debug("quoct changing container spec")
-  core.debug(JSON.stringify(container))
+  if (useScriptExecutor()) {
+    core.debug('starting script executor server')
+    // Starting the server.
+    container.entryPoint = SCRIPT_EXECUTOR_ENTRY_POINT
+    container.entryPointArgs = SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+  }
 
   const podContainer = {
     name,
