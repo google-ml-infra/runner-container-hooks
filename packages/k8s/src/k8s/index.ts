@@ -102,7 +102,7 @@ export async function createPod(
   initContainer.image = "node:22.16.0-alpine3.22"
   initContainer.workingDir = "/app"
   initContainer.command = ["sh"]
-  initContainer.args = ["-c", `npm i ml-velocity-script-executor; cp -r /app/dist /script_executor;`]
+  initContainer.args = ["-c", `npm i ml-velocity-script-executor; cp -r ./node_modules/ml-velocity-script-executor/dist /script_executor;`]
   initContainer.volumeMounts = []
   appPod.spec.initContainers = [initContainer]
 
