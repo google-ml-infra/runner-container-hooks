@@ -101,7 +101,7 @@ export async function createPod(
   initContainer.name = "grpc-server"
   initContainer.image = "node:22.16.0-alpine3.22"
   initContainer.command = ["sh"]
-  initContainer.args = ["-c", `echo "Installing script executor"; npm i ml-velocity-script-executor; cp -r dist /script_executor; echo "File copied successfully. Init container finished.`]
+  initContainer.args = ["-c", `npm i ml-velocity-script-executor; cp -r dist /script_executor;`]
   initContainer.volumeMounts = []
   appPod.spec.initContainers = [initContainer]
 
