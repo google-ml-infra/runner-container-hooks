@@ -72,7 +72,7 @@ describe('Prepare job', () => {
         SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
       )
     } catch {
-      console.log("Error creating")
+      console.log('Error creating')
       const content = JSON.parse(
         fs.readFileSync(prepareJobOutputFilePath).toString()
       )
