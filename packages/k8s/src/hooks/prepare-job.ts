@@ -204,6 +204,13 @@ export function createContainerSpec(
     container.entryPointArgs = DEFAULT_CONTAINER_ENTRY_POINT_ARGS
   }
 
+  // Starting the server.
+  container.entryPoint = "/__e/node20/bin/node"
+  container.entryPointArgs = ["/script_executor/dist/index.js"]
+
+  core.debug("quoct changing container spec")
+  core.debug(JSON.stringify(container))
+
   const podContainer = {
     name,
     image: container.image,
