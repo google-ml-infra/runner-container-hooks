@@ -71,6 +71,13 @@ describe('Prepare job', () => {
       expect(got.spec?.containers[0].args).toEqual(
         SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
       )
+    } catch {
+      console.log("Error creating")
+      const content = JSON.parse(
+        fs.readFileSync(prepareJobOutputFilePath).toString()
+      )
+      const got = await getPodByName(content.state.jobPod)
+      console.log(JSON.stringify(got))
     } finally {
       process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
     }
