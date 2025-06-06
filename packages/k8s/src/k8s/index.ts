@@ -106,7 +106,7 @@ export async function createPod(
   appPod.spec.initContainers = [initContainer]
 
   const executorVolumeMount = new k8s.V1VolumeMount()
-  executorVolumeMount.name = "script_executor"
+  executorVolumeMount.name = "script-executor"
   executorVolumeMount.mountPath = "/script_executor"
   jobContainer?.volumeMounts?.push(executorVolumeMount)
   initContainer.volumeMounts.push(executorVolumeMount)
@@ -126,7 +126,7 @@ export async function createPod(
       persistentVolumeClaim: { claimName }
     },
     {
-      name: 'script_executor',
+      name: 'script-executor',
       emptyDir: new k8s.V1EmptyDirVolumeSource()
     }
   ]
