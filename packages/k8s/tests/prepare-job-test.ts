@@ -48,6 +48,8 @@ describe.only('Prepare job', () => {
 
   it.only('should generate initContainer if script executor is used', async () => {
     process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'true'
+    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = 'tail'
+    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = '-f /dev/null'
     try {
       await expect(
         prepareJob(prepareJobData.args, prepareJobOutputFilePath)

@@ -229,8 +229,14 @@ export function createContainerSpec(
   if (useScriptExecutor()) {
     core.debug('starting script executor server')
     // Starting the server.
-    container.entryPoint = SCRIPT_EXECUTOR_ENTRY_POINT
-    container.entryPointArgs = SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+    container.entryPoint =
+      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] ||
+      SCRIPT_EXECUTOR_ENTRY_POINT
+    container.entryPointArgs = process.env[
+      'ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'
+    ]
+      ? process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'].split(' ')
+      : SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
   }
 
   const podContainer = {
