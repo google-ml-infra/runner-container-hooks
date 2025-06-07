@@ -70,11 +70,11 @@ describe.only('Prepare job', () => {
       console.log('Error creating' + JSON.stringify(e))
       const got = await getPodByName(process.env['ACTIONS_RUNNER_POD_NAME'])
       console.log(JSON.stringify(got.status))
-      for (const item in got.status?.containerStatuses) {
+      for (const item of got.status?.containerStatuses!!) {
         console.log(JSON.stringify(item))
       }
       const events = await getEvents(got.metadata?.name)
-      for (const item in events.items) {
+      for (const item of events.items) {
         console.log(JSON.stringify(item))
       }
       console.log('Events')
