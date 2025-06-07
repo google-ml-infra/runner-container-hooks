@@ -68,26 +68,6 @@ describe.only('Prepare job', () => {
       expect(got.spec?.containers[0].args).toContain('script_executor')
     } catch (e) {
       console.log('Error creating' + JSON.stringify(e))
-      const got = await getPodByName(process.env['ACTIONS_RUNNER_POD_NAME'])
-      console.log(JSON.stringify(got.status))
-      console.log(
-        'pod status ' + JSON.stringify(JSON.stringify(got.status?.conditions))
-      )
-      console.log(
-        'pod status phase ' + JSON.stringify(JSON.stringify(got.status?.phase))
-      )
-      console.log(
-        'pod init ' + JSON.stringify(JSON.stringify(got.spec?.initContainers))
-      )
-      for (const item of got.status?.containerStatuses!!) {
-        console.log(JSON.stringify(item))
-      }
-      const events = await getEvents(got.metadata?.name)
-      for (const item of events.items) {
-        console.log(JSON.stringify(item))
-      }
-      console.log('Events')
-      console.log(JSON.stringify(events))
     } finally {
       process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
     }
