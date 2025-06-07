@@ -106,15 +106,12 @@ export async function prepareJob(
   } catch (err) {
     const got = await getPodByName(createdPod.metadata.name)
     console.log(JSON.stringify(got.status))
-    console.log(
-      'pod status ' + JSON.stringify(JSON.stringify(got.status?.conditions))
-    )
-    console.log(
-      'pod status phase ' + JSON.stringify(JSON.stringify(got.status?.phase))
-    )
-    console.log(
-      'pod init ' + JSON.stringify(JSON.stringify(got.spec?.initContainers))
-    )
+    console.log('pod status')
+    console.log(JSON.stringify(JSON.stringify(got.status?.conditions)))
+    console.log('phase')
+    console.log(JSON.stringify(JSON.stringify(got.status?.phase)))
+    console.log('pod init')
+    console.log(JSON.stringify(JSON.stringify(got.spec?.initContainers)))
     for (const item of got.status?.containerStatuses!!) {
       console.log(JSON.stringify(item))
     }
