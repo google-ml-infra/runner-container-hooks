@@ -7,8 +7,7 @@ import {
   ENV_HOOK_TEMPLATE_PATH,
   ENV_USE_KUBE_SCHEDULER,
   generateContainerName,
-  SCRIPT_EXECUTOR_ENTRY_POINT,
-  SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+  readExtensionFromFile
 } from '../src/k8s/utils'
 import { getPodByName } from '../src/k8s'
 import { V1Container } from '@kubernetes/client-node'
@@ -45,42 +44,6 @@ describe('Prepare job', () => {
     await prepareJob(prepareJobData.args, prepareJobOutputFilePath)
     const content = fs.readFileSync(prepareJobOutputFilePath)
     expect(() => JSON.parse(content.toString())).not.toThrow()
-  })
-
-  it('should generate initContainer if script executor is used', async () => {
-    process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'true'
-    try {
-      await expect(
-        prepareJob(prepareJobData.args, prepareJobOutputFilePath)
-      ).resolves.not.toThrow()
-
-      const content = JSON.parse(
-        fs.readFileSync(prepareJobOutputFilePath).toString()
-      )
-
-      const got = await getPodByName(content.state.jobPod)
-      expect(got.spec?.initContainers).toHaveLength(1)
-      expect(got.spec?.initContainers!![0].volumeMounts).toHaveLength(1)
-      expect(got.spec?.initContainers!![0].volumeMounts!![0].mountPath).toEqual(
-        '/script_executor'
-      )
-
-      expect(got.spec?.containers[0].command).toEqual(
-        SCRIPT_EXECUTOR_ENTRY_POINT
-      )
-      expect(got.spec?.containers[0].args).toEqual(
-        SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
-      )
-    } catch {
-      console.log('Error creating')
-      const content = JSON.parse(
-        fs.readFileSync(prepareJobOutputFilePath).toString()
-      )
-      const got = await getPodByName(content.state.jobPod)
-      console.log(JSON.stringify(got))
-    } finally {
-      process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
-    }
   })
 
   it('should prepare job with absolute path for userVolumeMount', async () => {
