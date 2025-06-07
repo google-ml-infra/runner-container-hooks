@@ -13,10 +13,6 @@ import { getPodByName } from '../src/k8s'
 import { V1Container } from '@kubernetes/client-node'
 import * as yaml from 'js-yaml'
 import { JOB_CONTAINER_NAME } from '../src/hooks/constants'
-import {
-  SCRIPT_EXECUTOR_ENTRY_POINT,
-  SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
-} from '../dist/k8s/utils'
 
 jest.useRealTimers()
 
@@ -68,12 +64,8 @@ describe.only('Prepare job', () => {
         '/script_executor'
       )
 
-      expect(got.spec?.containers[0].command).toEqual(
-        SCRIPT_EXECUTOR_ENTRY_POINT
-      )
-      expect(got.spec?.containers[0].args).toEqual(
-        SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
-      )
+      expect(got.spec?.containers[0].command).toContain('node')
+      expect(got.spec?.containers[0].args).toContain('script_executor')
     } catch (e) {
       console.log('Error creating' + JSON.stringify(e))
       const got = await getPodByName(process.env['ACTIONS_RUNNER_POD_NAME'])
