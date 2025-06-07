@@ -30,10 +30,8 @@ export async function runScriptStep(
   args.entryPointArgs = ['-e', containerPath]
   const podName = state.jobPod
   try {
-    // TODO(quoct): test this.
-    const useScript = true || useScriptExecutor()
-    if (useScript) {
-      core.debug('quoct using script executor')
+    if (useScriptExecutor()) {
+      core.debug('using script executor')
       const command = fixArgs([args.entryPoint, ...args.entryPointArgs]).join(
         ' '
       )
@@ -49,7 +47,7 @@ export async function runScriptStep(
 
       await runScriptByGrpc(command, status.podIP, GRPC_SCRIPT_EXECUTOR_PORT)
     } else {
-      core.debug('quoct using exec pod step')
+      core.debug('using exec pod step')
       await execPodStep(
         [args.entryPoint, ...args.entryPointArgs],
         podName,
