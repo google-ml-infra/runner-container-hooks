@@ -13,6 +13,10 @@ import { getPodByName } from '../src/k8s'
 import { V1Container } from '@kubernetes/client-node'
 import * as yaml from 'js-yaml'
 import { JOB_CONTAINER_NAME } from '../src/hooks/constants'
+import {
+  SCRIPT_EXECUTOR_ENTRY_POINT,
+  SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+} from '../dist/k8s/utils'
 
 jest.useRealTimers()
 
@@ -22,7 +26,7 @@ let prepareJobData: any
 
 let prepareJobOutputFilePath: string
 
-describe('Prepare job', () => {
+describe.only('Prepare job', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()
@@ -44,6 +48,39 @@ describe('Prepare job', () => {
     await prepareJob(prepareJobData.args, prepareJobOutputFilePath)
     const content = fs.readFileSync(prepareJobOutputFilePath)
     expect(() => JSON.parse(content.toString())).not.toThrow()
+  })
+
+  it.only('should generate initContainer if script executor is used', async () => {
+    process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'true'
+    try {
+      await expect(
+        prepareJob(prepareJobData.args, prepareJobOutputFilePath)
+      ).resolves.not.toThrow()
+
+      const content = JSON.parse(
+        fs.readFileSync(prepareJobOutputFilePath).toString()
+      )
+
+      const got = await getPodByName(content.state.jobPod)
+      expect(got.spec?.initContainers).toHaveLength(1)
+      expect(got.spec?.initContainers!![0].volumeMounts).toHaveLength(1)
+      expect(got.spec?.initContainers!![0].volumeMounts!![0].mountPath).toEqual(
+        '/script_executor'
+      )
+
+      expect(got.spec?.containers[0].command).toEqual(
+        SCRIPT_EXECUTOR_ENTRY_POINT
+      )
+      expect(got.spec?.containers[0].args).toEqual(
+        SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+      )
+    } catch (e) {
+      console.log('Error creating' + JSON.stringify(e))
+      const got = await getPodByName(process.env['ACTIONS_RUNNER_POD_NAME'])
+      console.log(JSON.stringify(got))
+    } finally {
+      process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
+    }
   })
 
   it('should prepare job with absolute path for userVolumeMount', async () => {
