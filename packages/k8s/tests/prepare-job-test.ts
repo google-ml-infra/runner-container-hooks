@@ -9,7 +9,7 @@ import {
   generateContainerName,
   readExtensionFromFile
 } from '../src/k8s/utils'
-import { getPodByName } from '../src/k8s'
+import { getEvents, getPodByName } from '../src/k8s'
 import { V1Container } from '@kubernetes/client-node'
 import * as yaml from 'js-yaml'
 import { JOB_CONTAINER_NAME } from '../src/hooks/constants'
@@ -69,7 +69,16 @@ describe.only('Prepare job', () => {
     } catch (e) {
       console.log('Error creating' + JSON.stringify(e))
       const got = await getPodByName(process.env['ACTIONS_RUNNER_POD_NAME'])
-      console.log(JSON.stringify(got))
+      console.log(JSON.stringify(got.status))
+      const events = await getEvents(
+        got.metadata?.namespace,
+        got.metadata?.name
+      )
+      for (const item in events.items) {
+        console.log(JSON.stringify(item))
+      }
+      console.log('Events')
+      console.log(JSON.stringify(events))
     } finally {
       process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
     }

@@ -668,3 +668,10 @@ export function containerPorts(
 export async function getPodByName(name): Promise<k8s.V1Pod> {
   return await k8sApi.readNamespacedPod({ name, namespace: namespace() })
 }
+
+export async function getEvents(namespace, podName) {
+  return await k8sApi.listNamespacedEvent({
+    namespace,
+    labelSelector: `involvedObject.namespace=${namespace},involvedObject.name=${podName}`
+  })
+}
