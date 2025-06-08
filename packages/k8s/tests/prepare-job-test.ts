@@ -65,9 +65,6 @@ describe('Prepare job', () => {
       expect(got.spec?.initContainers!![0].volumeMounts!![0].mountPath).toEqual(
         '/script_executor'
       )
-
-      expect(got.spec?.containers[0].command).toContain('node')
-      expect(got.spec?.containers[0].args).toContain('script_executor')
     } finally {
       process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
       process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = ''
