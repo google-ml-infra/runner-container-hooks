@@ -61,7 +61,7 @@ describe('Prepare job', () => {
       )
 
       const got = await getPodByName(content.state.jobPod)
-      expect(got.spec?.initContainers!![0].volumeMounts).toHaveLength(1)
+      expect(got.spec?.initContainers).toHaveLength(1)
       expect(got.spec?.initContainers!![0].volumeMounts!![0].mountPath).toEqual(
         '/script_executor'
       )
