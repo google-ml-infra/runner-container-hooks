@@ -1,6 +1,6 @@
 import { optionsWithDockerEnvs, sanitize, fixArgs } from '../src/utils'
 
-describe.only('Utilities', () => {
+describe('Utilities', () => {
   it('should return sanitized image name', () => {
     expect(sanitize('ubuntu:latest')).toBe('ubuntulatest')
   })

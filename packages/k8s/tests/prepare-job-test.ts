@@ -22,7 +22,7 @@ let prepareJobData: any
 
 let prepareJobOutputFilePath: string
 
-describe.only('Prepare job', () => {
+describe('Prepare job', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()
@@ -46,8 +46,9 @@ describe.only('Prepare job', () => {
     expect(() => JSON.parse(content.toString())).not.toThrow()
   })
 
-  it.only('should generate initContainer if script executor is used', async () => {
+  it('should generate initContainer if script executor is used', async () => {
     process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'true'
+    // The test container does not have node installed in /__e/ location.
     process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = 'tail'
     process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = '-f /dev/null'
     try {
@@ -68,10 +69,10 @@ describe.only('Prepare job', () => {
 
       expect(got.spec?.containers[0].command).toContain('node')
       expect(got.spec?.containers[0].args).toContain('script_executor')
-    } catch (e) {
-      console.log('Error creating' + JSON.stringify(e))
     } finally {
       process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
+      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = ''
+      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = ''
     }
   })
 

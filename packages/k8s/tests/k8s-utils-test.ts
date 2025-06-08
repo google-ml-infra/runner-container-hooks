@@ -348,7 +348,7 @@ describe('k8s utils', () => {
     })
   })
 
-  describe.only('create script executor container', () => {
+  describe('create script executor container', () => {
     it('should install script executor at the volume mount location', () => {
       const executorVolumeMount = new k8s.V1VolumeMount()
       executorVolumeMount.name = 'script-executor'

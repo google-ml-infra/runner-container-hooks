@@ -14,9 +14,7 @@ import {
   isPodContainerAlpine,
   prunePods,
   waitForPodPhases,
-  getPrepareJobTimeoutSeconds,
-  getPodByName,
-  getEvents
+  getPrepareJobTimeoutSeconds
 } from '../k8s'
 import {
   containerVolumes,
@@ -104,24 +102,6 @@ export async function prepareJob(
       getPrepareJobTimeoutSeconds()
     )
   } catch (err) {
-    const got = await getPodByName(createdPod.metadata.name)
-    console.log(JSON.stringify(got.status))
-    console.log('pod status')
-    console.log(JSON.stringify(JSON.stringify(got.status?.conditions)))
-    console.log('phase')
-    console.log(JSON.stringify(JSON.stringify(got.status?.phase)))
-    console.log('pod init')
-    console.log(JSON.stringify(JSON.stringify(got.spec?.initContainers)))
-    for (const item of got.status?.containerStatuses!!) {
-      console.log(JSON.stringify(item))
-    }
-    const events = await getEvents(createdPod.metadata.name)
-    for (const item of events.items) {
-      console.log(JSON.stringify(item))
-    }
-    console.log('Events')
-    console.log(JSON.stringify(events))
-
     await prunePods()
     throw new Error(`pod failed to come online with error: ${err}`)
   }
