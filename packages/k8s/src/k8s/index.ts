@@ -97,14 +97,22 @@ export async function createPod(
   appPod.spec.containers = containers
   appPod.spec.restartPolicy = 'Never'
 
-  const executorVolumeMount = new k8s.V1VolumeMount()
-  executorVolumeMount.name = 'script-executor'
-  executorVolumeMount.mountPath = '/script_executor'
-
   if (useScriptExecutor()) {
-    core.debug('creating init container to install script executor.')
-    const initContainer = createScriptExecutorContainer(executorVolumeMount)
+    core.info('creating init container to install script executor.')
+
+    const initContainerVolumeMount = new k8s.V1VolumeMount()
+    initContainerVolumeMount.name = 'script-executor'
+    initContainerVolumeMount.mountPath = '/script_executor'
+
+    const initContainer = createScriptExecutorContainer(
+      initContainerVolumeMount
+    )
     appPod.spec.initContainers = [initContainer]
+
+    const executorVolumeMount = new k8s.V1VolumeMount()
+    executorVolumeMount.name = 'script-executor'
+    executorVolumeMount.mountPath = '/script_executor'
+    executorVolumeMount.readOnly = true
 
     jobContainer?.volumeMounts?.push(executorVolumeMount)
   }

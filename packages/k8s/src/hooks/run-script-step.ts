@@ -31,7 +31,7 @@ export async function runScriptStep(
   const podName = state.jobPod
   try {
     if (useScriptExecutor()) {
-      core.debug('using script executor')
+      core.info('using script executor')
       const command = fixArgs([args.entryPoint, ...args.entryPointArgs]).join(
         ' '
       )
@@ -47,7 +47,7 @@ export async function runScriptStep(
 
       await runScriptByGrpc(command, status.podIP, GRPC_SCRIPT_EXECUTOR_PORT)
     } else {
-      core.debug('using exec pod step')
+      core.info('using exec pod step')
       await execPodStep(
         [args.entryPoint, ...args.entryPointArgs],
         podName,

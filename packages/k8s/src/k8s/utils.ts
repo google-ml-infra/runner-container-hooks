@@ -387,7 +387,8 @@ export function createScriptExecutorContainer(
 ): k8s.V1Container {
   const initContainer = new k8s.V1Container()
   initContainer.name = 'grpc-server'
-  initContainer.image = 'node:22.16.0-alpine3.22'
+  initContainer.image =
+    'node@sha256:41e4389f3d988d2ed55392df4db1420ad048ae53324a8e2b7c6d19508288107e' // node:22.16.0-alpine3.22
   initContainer.workingDir = '/app'
   initContainer.command = ['sh']
   initContainer.args = [
