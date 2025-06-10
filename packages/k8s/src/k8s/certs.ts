@@ -108,7 +108,6 @@ export function generateCert(
   )
   cert.setIssuer(attributes.concat([{ name: 'commonName', value: issuerName }]))
 
-  // Needed because the GRPC client and server will use localhost address.
   cert.setExtensions([
     {
       name: 'basicConstraints',
