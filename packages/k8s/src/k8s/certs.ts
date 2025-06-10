@@ -9,7 +9,6 @@ interface CertAndKeyPairs {
 interface CertAndKeys {
   cert: string
   privateKey: string
-  publicKey: string
 }
 
 export interface MTLSCertAndPrivateKey {
@@ -57,36 +56,25 @@ export function generateCerts(): MTLSCertAndPrivateKey {
   )
 
   const caPem = forge.pki.certificateToPem(caKeyAndCert.cert)
-  const caPublicKeyPem = forge.pki.publicKeyToPem(
-    caKeyAndCert.keyPairs.publicKey
-  )
   const serverPem = forge.pki.certificateToPem(serverKeyAndCert.cert)
   const serverKeyPem = forge.pki.privateKeyToPem(
     serverKeyAndCert.keyPairs.privateKey
-  )
-  const serverPublicKeyPem = forge.pki.publicKeyToPem(
-    serverKeyAndCert.keyPairs.publicKey
   )
   const clientPem = forge.pki.certificateToPem(clientKeyAndCert.cert)
   const clientKeyPem = forge.pki.privateKeyToPem(
     clientKeyAndCert.keyPairs.privateKey
   )
-  const clientPublicKeyPem = forge.pki.publicKeyToPem(
-    clientKeyAndCert.keyPairs.publicKey
-  )
 
   // We do not need to store to private key for the self-signed CA certificate.
   return {
-    caCertAndkey: { cert: caPem, privateKey: '', publicKey: caPublicKeyPem },
+    caCertAndkey: { cert: caPem, privateKey: '' },
     serverCertAndKey: {
       cert: serverPem,
-      privateKey: serverKeyPem,
-      publicKey: serverPublicKeyPem
+      privateKey: serverKeyPem
     },
     clientCertAndKey: {
       cert: clientPem,
-      privateKey: clientKeyPem,
-      publicKey: clientPublicKeyPem
+      privateKey: clientKeyPem
     }
   }
 }
@@ -134,6 +122,11 @@ export function generateCert(
       keyEncipherment: true,
       dataEncipherment: true
     },
+    {
+      name: 'extKeyUsage',
+      serverAuth: true,
+      clientAuth: true
+    },
     // Needed because the GRPC client and server will use localhost address.
     {
       name: 'subjectAltName',
@@ -144,20 +137,6 @@ export function generateCert(
       ]
     }
   ])
-
-  if (subjectName === CertCommonName.SERVER) {
-    cert.extensions.push({
-      name: 'extKeyUsage',
-      serverAuth: true
-    })
-  }
-
-  if (subjectName === CertCommonName.CLIENT) {
-    cert.extensions.push({
-      name: 'extKeyUsage',
-      clientAuth: true
-    })
-  }
 
   return {
     keyPairs,

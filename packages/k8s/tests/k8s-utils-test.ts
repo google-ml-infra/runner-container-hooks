@@ -13,7 +13,7 @@ import {
 } from '../src/k8s/utils'
 import * as k8s from '@kubernetes/client-node'
 import { TestHelper } from './test-setup'
-import { CertCommonName, generateCert } from '../src/k8s/certs'
+import { CertCommonName, generateCert, generateCerts } from '../src/k8s/certs'
 
 let testHelper: TestHelper
 
@@ -636,5 +636,23 @@ describe.only('certs', () => {
         })
       ])
     )
+  })
+
+  it('should generate signed server and client certs', () => {
+    const certs = generateCerts()
+    expect(certs.caCertAndkey.cert).toBeTruthy()
+    expect(certs.caCertAndkey.privateKey).not.toBeTruthy()
+    expect(certs.serverCertAndKey.cert).toBeTruthy()
+    expect(certs.serverCertAndKey.privateKey).toBeTruthy()
+    expect(certs.clientCertAndKey.cert).toBeTruthy()
+    expect(certs.clientCertAndKey.privateKey).toBeTruthy()
+
+    const caCert = forge.pki.certificateFromPem(certs.caCertAndkey.cert)
+    expect(
+      caCert.verify(forge.pki.certificateFromPem(certs.serverCertAndKey.cert))
+    ).toBeTruthy()
+    expect(
+      caCert.verify(forge.pki.certificateFromPem(certs.clientCertAndKey.cert))
+    ).toBeTruthy()
   })
 })
