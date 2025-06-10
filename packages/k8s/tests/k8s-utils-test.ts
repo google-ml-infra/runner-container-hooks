@@ -1,4 +1,5 @@
 ﻿import * as fs from 'fs'
+import * as forge from 'node-forge'
 import { containerPorts, POD_VOLUME_NAME } from '../src/k8s'
 import {
   containerVolumes,
@@ -12,6 +13,7 @@ import {
 } from '../src/k8s/utils'
 import * as k8s from '@kubernetes/client-node'
 import { TestHelper } from './test-setup'
+import { CertCommonName, generateCert } from '../src/k8s/certs'
 
 let testHelper: TestHelper
 
@@ -548,5 +550,91 @@ spec:
     mergePodSpecWithOptions(base, from)
 
     expect(base).toStrictEqual(expected)
+  })
+})
+
+describe.only('certs', () => {
+  it('should create self-signed CA', () => {
+    const caCert = generateCert(7, CertCommonName.ROOT, CertCommonName.ROOT)
+    expect(caCert.cert.subject.attributes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'commonName',
+          value: CertCommonName.ROOT
+        })
+      ])
+    )
+    expect(caCert.cert.issuer.attributes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'commonName',
+          value: CertCommonName.ROOT
+        })
+      ])
+    )
+    expect(caCert.cert.extensions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'basicConstraints',
+          cA: true
+        })
+      ])
+    )
+  })
+
+  it('should create server cert', () => {
+    const caCert = generateCert(7, CertCommonName.ROOT, CertCommonName.SERVER)
+    expect(caCert.cert.subject.attributes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'commonName',
+          value: CertCommonName.SERVER
+        })
+      ])
+    )
+    expect(caCert.cert.issuer.attributes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'commonName',
+          value: CertCommonName.ROOT
+        })
+      ])
+    )
+    expect(caCert.cert.extensions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'basicConstraints',
+          cA: false
+        })
+      ])
+    )
+  })
+
+  it('should create client cert', () => {
+    const caCert = generateCert(7, CertCommonName.ROOT, CertCommonName.CLIENT)
+    expect(caCert.cert.subject.attributes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'commonName',
+          value: CertCommonName.CLIENT
+        })
+      ])
+    )
+    expect(caCert.cert.issuer.attributes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'commonName',
+          value: CertCommonName.ROOT
+        })
+      ])
+    )
+    expect(caCert.cert.extensions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'basicConstraints',
+          cA: false
+        })
+      ])
+    )
   })
 })
