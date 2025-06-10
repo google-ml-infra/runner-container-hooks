@@ -553,7 +553,7 @@ spec:
   })
 })
 
-describe.only('certs', () => {
+describe('certs', () => {
   it('should create self-signed CA', () => {
     const caCert = generateCert(7, CertCommonName.ROOT, CertCommonName.ROOT)
     expect(caCert.cert.subject.attributes).toEqual(
