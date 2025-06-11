@@ -796,14 +796,14 @@ const clientCertDicts: { [key: string]: MTLSCertAndPrivateKey } = {}
 export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateKey> {
   const instanceLabel = new RunnerInstanceLabel()
   const certDictKey = instanceLabel.toString()
-  if (clientCertDicts[certDictKey] != undefined) {
+  if (clientCertDicts[certDictKey] !== undefined) {
     return clientCertDicts[certDictKey]
   }
   const secrets = await k8sApi.listNamespacedSecret({
     namespace: namespace(),
     labelSelector: `${certDictKey},certs=true`
   })
-  if (secrets.items.length != 1) {
+  if (secrets.items.length !== 1) {
     throw new Error(
       'There should only be one cert secret for the workflow pod.'
     )
