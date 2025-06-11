@@ -62,9 +62,13 @@ describe('Prepare job', () => {
 
       const got = await getPodByName(content.state.jobPod)
       expect(got.spec?.initContainers).toHaveLength(1)
-      expect(got.spec!!.initContainers!![0].volumeMounts!!).toEqual(expect.arrayContaining([expect.objectContaining({
-        mountPath: "/script_executor"
-      })]))
+      expect(got.spec!!.initContainers!![0].volumeMounts!!).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            mountPath: '/script_executor'
+          })
+        ])
+      )
     } finally {
       process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
       process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = ''
@@ -87,16 +91,20 @@ describe('Prepare job', () => {
       )
 
       const got = await getPodByName(content.state.jobPod)
-      expect(got.spec!!.volumes!!).toEqual(expect.arrayContaining([expect.objectContaining({
-        name: 'certs',
-        secret: expect.objectContaining({
-          items: [
-            { key: 'ca.crt', path: 'ca.crt' },
-            { key: 'server.crt', path: 'server.crt' },
-            { key: 'server.key', path: 'server.key' }
-          ]
-        })
-      })]))
+      expect(got.spec!!.volumes!!).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'certs',
+            secret: expect.objectContaining({
+              items: [
+                { key: 'ca.crt', path: 'ca.crt' },
+                { key: 'server.crt', path: 'server.crt' },
+                { key: 'server.key', path: 'server.key' }
+              ]
+            })
+          })
+        ])
+      )
     } finally {
       process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'false'
       process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = ''

@@ -104,7 +104,11 @@ export async function createPod(
     if (!jobContainer) {
       throw new Error('script executor only works with a job container')
     }
-    prepareJobContainerAndPodForScriptExecutor(jobContainer, appPod.spec, instanceLabel)  
+    await prepareJobContainerAndPodForScriptExecutor(
+      jobContainer,
+      appPod.spec,
+      instanceLabel
+    )
   }
 
   const nodeName = await getCurrentNodeName()
@@ -153,15 +157,13 @@ export async function prepareJobContainerAndPodForScriptExecutor(
   jobContainer: k8s.V1Container,
   appPodSpec: k8s.V1PodSpec,
   instanceLabel: RunnerInstanceLabel
-) {
+): Promise<void> {
   core.info('creating init container to install script executor.')
   const initContainerVolumeMount = new k8s.V1VolumeMount()
   initContainerVolumeMount.name = 'script-executor'
   initContainerVolumeMount.mountPath = '/script_executor'
 
-  const initContainer = createScriptExecutorContainer(
-    initContainerVolumeMount
-  )
+  const initContainer = createScriptExecutorContainer(initContainerVolumeMount)
   appPodSpec.initContainers = [initContainer]
 
   const executorVolumeMount = new k8s.V1VolumeMount()
