@@ -334,7 +334,8 @@ export async function runScriptByGrpc(
     grpc.credentials.createSsl(
       Buffer.from(rootCert),
       Buffer.from(clientKey),
-      Buffer.from(clientCert)
+      Buffer.from(clientCert),
+      { rejectUnauthorized: false } // Needed for self-signed certificate.
     ),
     {
       // Ping the server every 10 seconds to ensure the connection is still active
