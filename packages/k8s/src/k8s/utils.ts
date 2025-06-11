@@ -323,13 +323,19 @@ export async function sleep(ms: number): Promise<void> {
  */
 export async function runScriptByGrpc(
   command: string,
+  rootCert: string,
+  clientCert: string,
+  clientKey: string,
   ip: string,
   grpc_port = 50051
 ): Promise<void> {
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
-    // TODO(quoct): Use mTLS with certificates here.
-    grpc.credentials.createInsecure(),
+    grpc.credentials.createSsl(
+      Buffer.from(rootCert),
+      Buffer.from(clientKey),
+      Buffer.from(clientCert)
+    ),
     {
       // Ping the server every 10 seconds to ensure the connection is still active
       'grpc.keepalive_time_ms': 10_000,
