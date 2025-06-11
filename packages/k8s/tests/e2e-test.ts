@@ -47,4 +47,32 @@ describe('e2e', () => {
 
     await expect(cleanupJob()).resolves.not.toThrow()
   })
+
+  it('should prepare job, run script step, run container step then cleanup without errors for script executor', async () => {
+    process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = "true"
+    try {
+      await expect(
+        prepareJob(prepareJobData.args, prepareJobOutputFilePath)
+      ).resolves.not.toThrow()
+  
+      const scriptStepData = testHelper.getRunScriptStepDefinition()
+  
+      const prepareJobOutputJson = fs.readFileSync(prepareJobOutputFilePath)
+      const prepareJobOutputData = JSON.parse(prepareJobOutputJson.toString())
+  
+      await expect(
+        runScriptStep(scriptStepData.args, prepareJobOutputData.state, null)
+      ).resolves.not.toThrow()
+  
+      const runContainerStepData = testHelper.getRunContainerStepDefinition()
+  
+      await expect(
+        runContainerStep(runContainerStepData.args)
+      ).resolves.not.toThrow()
+  
+      await expect(cleanupJob()).resolves.not.toThrow()  
+    } finally {
+      process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = ""
+    }
+  })
 })
