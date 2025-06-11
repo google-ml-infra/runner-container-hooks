@@ -153,6 +153,10 @@ export async function createPod(
   })
 }
 
+/**
+ * Add initContainer that contains script_executor GRPC server.
+ * Also mount certs for the GRPC server.
+ */
 export async function prepareJobContainerAndPodForScriptExecutor(
   jobContainer: k8s.V1Container,
   appPodSpec: k8s.V1PodSpec,
@@ -706,6 +710,10 @@ export async function getEvents(podName): Promise<k8s.CoreV1EventList> {
   })
 }
 
+/**
+ * Generate self-signed root, client and server certificates.
+ * Store the certs as a secret in the runner's namespace.
+ */
 export async function createCertsAndSecrets(
   instanceLabel: RunnerInstanceLabel
 ): Promise<k8s.V1Secret> {
@@ -739,6 +747,11 @@ export async function createCertsAndSecrets(
   })
 }
 
+/**
+ * Call createCertsAndSecrets to generate cert secrets.
+ * Add the secret as a volume to appPodSpec.
+ * Mount the secret onto the jobContainer as a volumeMount.
+ */
 export async function addCertVolumeAndVolumeMount(
   appPodSpec: k8s.V1PodSpec,
   jobContainer: k8s.V1Container,

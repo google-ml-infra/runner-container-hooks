@@ -64,8 +64,8 @@ function main(): void {
         private_key: readFileSync(SERVER_KEY_PATH)
       }
     ],
-    true
-  ) // Checking Client Certificate to enable mTLS.
+    true // Checking Client Certificate to enable mTLS.
+  )
 
   server.bindAsync('0.0.0.0:50051', serverCredential, error => {
     console.error(`Error when binding server ${error}`)
