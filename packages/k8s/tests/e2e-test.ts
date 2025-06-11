@@ -14,7 +14,7 @@ let testHelper: TestHelper
 let prepareJobData: any
 
 let prepareJobOutputFilePath: string
-describe('e2e', () => {
+describe.only('e2e', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()
@@ -48,7 +48,7 @@ describe('e2e', () => {
     await expect(cleanupJob()).resolves.not.toThrow()
   })
 
-  it('should prepare job, run script step, run container step then cleanup without errors for script executor', async () => {
+  it.only('should prepare job, run script step, run container step then cleanup without errors for script executor', async () => {
     process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'true'
     try {
       await expect(
