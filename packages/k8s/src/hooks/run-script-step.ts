@@ -51,7 +51,7 @@ export async function runScriptStep(
         command,
         rootCertClientAndKey.caCertAndkey.cert,
         rootCertClientAndKey.clientCertAndKey.cert,
-        rootCertClientAndKey.caCertAndkey.privateKey,
+        rootCertClientAndKey.clientCertAndKey.privateKey,
         status.podIP,
         GRPC_SCRIPT_EXECUTOR_PORT
       )
