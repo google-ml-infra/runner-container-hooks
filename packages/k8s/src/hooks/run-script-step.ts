@@ -46,6 +46,8 @@ export async function runScriptStep(
       }
 
       const rootCertClientAndKey = await getRootCertClientCertAndKey()
+      console.log('successfully retrieved root cert, client and key')
+      console.log(JSON.stringify(rootCertClientAndKey))
       core.debug('successfully retrieved root cert, client and key')
       await runScriptByGrpc(
         command,
