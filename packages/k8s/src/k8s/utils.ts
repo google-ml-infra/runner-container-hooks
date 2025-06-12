@@ -331,14 +331,12 @@ export async function runScriptByGrpc(
 ): Promise<void> {
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
-    /*
     grpc.credentials.createSsl(
       Buffer.from(rootCert),
       Buffer.from(clientKey),
       Buffer.from(clientCert),
       { rejectUnauthorized: false } // Needed for self-signed certificate.
-    ),*/
-    grpc.credentials.createInsecure(),
+    ),
     {
       // Ping the server every 10 seconds to ensure the connection is still active
       'grpc.keepalive_time_ms': 10_000,

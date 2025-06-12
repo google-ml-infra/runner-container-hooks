@@ -6,7 +6,7 @@ import { TestHelper } from './test-setup'
 
 let testHelper: TestHelper
 
-describe.skip('Cleanup Job', () => {
+describe('Cleanup Job', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()

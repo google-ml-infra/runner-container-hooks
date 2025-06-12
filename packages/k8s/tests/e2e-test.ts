@@ -8,8 +8,10 @@ import {
 import { TestHelper } from './test-setup'
 import * as k8s from '@kubernetes/client-node'
 import { generateCerts } from '../src/k8s/certs'
-import { exec, execSync } from 'child_process'
-import { runScriptByGrpc } from '../dist/k8s/utils'
+import { ChildProcess, exec, execSync } from 'child_process'
+import { runScriptByGrpc } from '../src/k8s/utils'
+import { MTLSCertAndPrivateKey } from '../src/k8s/certs'
+import process from 'process'
 
 const kc = new k8s.KubeConfig()
 kc.loadFromDefault()
@@ -23,7 +25,7 @@ let testHelper: TestHelper
 let prepareJobData: any
 
 let prepareJobOutputFilePath: string
-describe.skip('e2e', () => {
+describe('e2e', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()
@@ -59,42 +61,94 @@ describe.skip('e2e', () => {
 })
 
 describe('script-executor', () => {
-  it('should execute script successfully', async () => {
-    const certs = generateCerts()
-    if (!fs.existsSync('/certs')) {
-      fs.mkdirSync('/certs')
+  async function startServer(): Promise<ChildProcess> {
+    const server = exec(
+      'node /tmp/node_modules/ml-velocity-script-executor/dist/index.js',
+      {
+        env: {
+          ...process.env,
+          SCRIPT_EXECUTOR_ROOT_CERT_PATH: '/tmp/certs/ca.crt',
+          SCRIPT_EXECUTOR_SERVER_CERT_PATH: '/tmp/certs/server.crt',
+          SCRIPT_EXECUTOR_SERVER_KEY_PATH: '/tmp/certs/server.key',
+          GRPC_VERBOSITY: 'debug',
+          GRPC_TRACE: 'all'
+        }
+      }
+    )
+    await new Promise<void>(resolve =>
+      server.stdout?.on('data', data => {
+        if (`${data}`.includes('Server running')) {
+          console.log(`Server is running!`)
+          resolve()
+        }
+      })
+    )
+    return server
+  }
+
+  let certs: MTLSCertAndPrivateKey
+  let serverProcess: ChildProcess
+  beforeAll(() => {
+    certs = generateCerts()
+    if (!fs.existsSync('/tmp/certs')) {
+      fs.mkdirSync('/tmp/certs', { recursive: true })
     }
 
-    fs.writeFileSync('/certs/ca.crt', certs.caCertAndkey.cert)
-    fs.writeFileSync('/certs/server.crt', certs.serverCertAndKey.cert)
-    fs.writeFileSync('/certs/server.key', certs.serverCertAndKey.privateKey)
+    fs.writeFileSync('/tmp/certs/ca.crt', certs.caCertAndkey.cert)
+    fs.writeFileSync('/tmp/certs/server.crt', certs.serverCertAndKey.cert)
+    fs.writeFileSync('/tmp/certs/server.key', certs.serverCertAndKey.privateKey)
 
-    const result = execSync('npm install ml-velocity-script-executor', {
+    execSync('npm install ml-velocity-script-executor', {
       cwd: '/tmp'
     })
-    console.log(result.toString())
+  })
 
-    const process = exec(
-      'node /tmp/node_modules/ml-velocity-script-executor/dist/index.js'
-    )
-    process.stdout?.on('data', data => {
-      console.log(`stdout: ${data}`)
-    })
+  afterAll(() => {
+    fs.rmSync('/tmp/certs', { recursive: true, force: true })
+  })
 
-    process.stderr?.on('data', data => {
-      console.log(`stderr: ${data}`)
-    })
+  beforeEach(async () => {
+    serverProcess = await startServer()
+  })
 
-    process.on('close', code => {
-      console.log(`child process exited with code ${code}`)
-    })
+  afterEach(() => {
+    serverProcess.kill()
+  })
 
-    await runScriptByGrpc(
-      'ls',
-      certs.caCertAndkey.cert,
-      certs.clientCertAndKey.cert,
-      certs.clientCertAndKey.privateKey,
-      'localhost'
-    )
+  it('should execute script successfully with certs', async () => {
+    await expect(
+      runScriptByGrpc(
+        'ls',
+        certs.caCertAndkey.cert,
+        certs.clientCertAndKey.cert,
+        certs.clientCertAndKey.privateKey,
+        'localhost'
+      )
+    ).resolves.not.toThrow()
+  })
+
+  it('should not execute script successfully with the wrong certs', async () => {
+    // Generate a new random client cert
+    const newCerts = generateCerts()
+
+    await expect(
+      runScriptByGrpc(
+        'ls',
+        newCerts.caCertAndkey.cert,
+        newCerts.clientCertAndKey.cert,
+        newCerts.clientCertAndKey.privateKey,
+        'localhost'
+      )
+    ).rejects.toThrow('UNAVAILABLE')
+
+    await expect(
+      runScriptByGrpc(
+        'ls',
+        certs.caCertAndkey.cert,
+        newCerts.clientCertAndKey.cert,
+        newCerts.clientCertAndKey.privateKey,
+        'localhost'
+      )
+    ).rejects.toThrow('UNAVAILABLE')
   })
 })

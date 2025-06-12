@@ -16,9 +16,12 @@ const keepaliveOptions = {
   'grpc.keepalive_timeout_ms': 5_000
 }
 
-const ROOT_CERT_PATH = '/certs/ca.crt'
-const SERVER_CERT_PATH = '/certs/server.crt'
-const SERVER_KEY_PATH = '/certs/server.key'
+const ROOT_CERT_PATH =
+  process.env['SCRIPT_EXECUTOR_ROOT_CERT_PATH'] || '/certs/ca.crt'
+const SERVER_CERT_PATH =
+  process.env['SCRIPT_EXECUTOR_SERVER_CERT_PATH'] || '/certs/server.crt'
+const SERVER_KEY_PATH =
+  process.env['SCRIPT_EXECUTOR_SERVER_KEY_PATH'] || '/certs/server.key'
 
 class ScriptExecutorService extends script_executor.UnimplementedScriptExecutorService {
   ExecuteScript(
