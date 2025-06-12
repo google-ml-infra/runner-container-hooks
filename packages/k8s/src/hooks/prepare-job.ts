@@ -103,7 +103,7 @@ export async function prepareJob(
       getPrepareJobTimeoutSeconds()
     )
   } catch (err) {
-    console.log('Error is ' + err)
+    console.log(`QUOCT Error is ${err}`)
     const pod = await getPodByName(createdPod.metadata.name)
     console.log(JSON.stringify(pod.status))
     console.log(JSON.stringify(pod))
