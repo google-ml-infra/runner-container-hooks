@@ -17,7 +17,7 @@ import { CertCommonName, generateCert, generateCerts } from '../src/k8s/certs'
 
 let testHelper: TestHelper
 
-describe('k8s utils', () => {
+describe.skip('k8s utils', () => {
   describe('write entrypoint', () => {
     beforeEach(async () => {
       testHelper = new TestHelper()

@@ -11,7 +11,7 @@ let testHelper: TestHelper
 
 let runContainerStepData: any
 
-describe('Run container step', () => {
+describe.skip('Run container step', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()

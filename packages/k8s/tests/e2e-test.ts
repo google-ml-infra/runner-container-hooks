@@ -50,6 +50,9 @@ describe.only('e2e', () => {
 
   it.only('should prepare job, run script step, run container step then cleanup without errors for script executor', async () => {
     process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'true'
+    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = 'node'
+    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] =
+      '/script_executor/dist/index.js'
     try {
       await expect(
         prepareJob(prepareJobData.args, prepareJobOutputFilePath)
