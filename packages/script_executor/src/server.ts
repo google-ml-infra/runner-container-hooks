@@ -22,6 +22,7 @@ const SERVER_CERT_PATH =
   process.env['SCRIPT_EXECUTOR_SERVER_CERT_PATH'] || '/certs/server.crt'
 const SERVER_KEY_PATH =
   process.env['SCRIPT_EXECUTOR_SERVER_KEY_PATH'] || '/certs/server.key'
+const SERVER_PORT = process.env['SCRIPT_EXECUTOR_SERVER_PORT'] || '50051'
 
 class ScriptExecutorService extends script_executor.UnimplementedScriptExecutorService {
   ExecuteScript(
@@ -70,10 +71,10 @@ function main(): void {
     true // Checking Client Certificate to enable mTLS.
   )
 
-  server.bindAsync('0.0.0.0:50051', serverCredential, error => {
+  server.bindAsync(`0.0.0.0:${SERVER_PORT}`, serverCredential, error => {
     console.error(`Error when binding server ${error}`)
     server.start()
-    console.log('Server running on port 50051')
+    console.log(`Server running on port ${SERVER_PORT}`)
   })
 }
 

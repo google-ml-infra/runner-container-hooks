@@ -61,7 +61,7 @@ describe('e2e', () => {
 })
 
 describe('script-executor', () => {
-  async function startServer(): Promise<ChildProcess> {
+  async function startServer(port: number): Promise<ChildProcess> {
     const server = exec(
       'node /tmp/node_modules/ml-velocity-script-executor/dist/index.js',
       {
@@ -70,6 +70,7 @@ describe('script-executor', () => {
           SCRIPT_EXECUTOR_ROOT_CERT_PATH: '/tmp/certs/ca.crt',
           SCRIPT_EXECUTOR_SERVER_CERT_PATH: '/tmp/certs/server.crt',
           SCRIPT_EXECUTOR_SERVER_KEY_PATH: '/tmp/certs/server.key',
+          SCRIPT_EXECUTOR_SERVER_PORT: `${port}`,
           GRPC_VERBOSITY: 'debug',
           GRPC_TRACE: 'all'
         }
@@ -87,7 +88,6 @@ describe('script-executor', () => {
   }
 
   let certs: MTLSCertAndPrivateKey
-  let serverProcess: ChildProcess
   beforeAll(() => {
     certs = generateCerts()
     if (!fs.existsSync('/tmp/certs')) {
@@ -107,48 +107,52 @@ describe('script-executor', () => {
     fs.rmSync('/tmp/certs', { recursive: true, force: true })
   })
 
-  beforeEach(async () => {
-    serverProcess = await startServer()
-  })
-
-  afterEach(() => {
-    serverProcess.kill()
-  })
-
   it('should execute script successfully with certs', async () => {
-    await expect(
-      runScriptByGrpc(
-        'ls',
-        certs.caCertAndkey.cert,
-        certs.clientCertAndKey.cert,
-        certs.clientCertAndKey.privateKey,
-        'localhost'
-      )
-    ).resolves.not.toThrow()
+    const serverProcess = await startServer(50051)
+    try {
+      await expect(
+        runScriptByGrpc(
+          'ls',
+          certs.caCertAndkey.cert,
+          certs.clientCertAndKey.cert,
+          certs.clientCertAndKey.privateKey,
+          'localhost'
+        )
+      ).resolves.not.toThrow()
+    } finally {
+      serverProcess.kill()
+    }
   })
 
   it('should not execute script successfully with the wrong certs', async () => {
-    // Generate a new random client cert
-    const newCerts = generateCerts()
+    const serverProcess = await startServer(50052)
+    try {
+      // Generate a new random client cert
+      const newCerts = generateCerts()
 
-    await expect(
-      runScriptByGrpc(
-        'ls',
-        newCerts.caCertAndkey.cert,
-        newCerts.clientCertAndKey.cert,
-        newCerts.clientCertAndKey.privateKey,
-        'localhost'
-      )
-    ).rejects.toThrow('UNAVAILABLE')
+      await expect(
+        runScriptByGrpc(
+          'ls',
+          newCerts.caCertAndkey.cert,
+          newCerts.clientCertAndKey.cert,
+          newCerts.clientCertAndKey.privateKey,
+          'localhost',
+          50052
+        )
+      ).rejects.toThrow('UNAVAILABLE')
 
-    await expect(
-      runScriptByGrpc(
-        'ls',
-        certs.caCertAndkey.cert,
-        newCerts.clientCertAndKey.cert,
-        newCerts.clientCertAndKey.privateKey,
-        'localhost'
-      )
-    ).rejects.toThrow('UNAVAILABLE')
+      await expect(
+        runScriptByGrpc(
+          'ls',
+          certs.caCertAndkey.cert,
+          newCerts.clientCertAndKey.cert,
+          newCerts.clientCertAndKey.privateKey,
+          'localhost',
+          50052
+        )
+      ).rejects.toThrow('UNAVAILABLE')
+    } finally {
+      serverProcess.kill()
+    }
   })
 })

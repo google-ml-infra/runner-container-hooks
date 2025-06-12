@@ -167,10 +167,7 @@ export async function prepareJobContainerAndPodForScriptExecutor(
   initContainerVolumeMount.name = 'script-executor'
   initContainerVolumeMount.mountPath = '/script_executor'
 
-  const initContainer = createScriptExecutorContainer(
-    initContainerVolumeMount,
-    '0.1.0' // TODO(quoct): Remove this
-  )
+  const initContainer = createScriptExecutorContainer(initContainerVolumeMount)
   appPodSpec.initContainers = [initContainer]
 
   const executorVolumeMount = new k8s.V1VolumeMount()
@@ -790,6 +787,7 @@ export async function addCertVolumeAndVolumeMount(
   jobContainer.volumeMounts.push(certVolumeMount)
 }
 
+// Cache for the cert so we do not have to keep calling Kubernetes API.
 const clientCertDicts: { [key: string]: MTLSCertAndPrivateKey } = {}
 
 /**
