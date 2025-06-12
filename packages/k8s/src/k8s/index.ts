@@ -553,7 +553,7 @@ export async function setUpService(): Promise<k8s.V1Service> {
     namespace: namespace(),
     body: {
       metadata: {
-        name: `service-${instanceLabel.toString()}`.substring(0, 60)
+        name: `service-${instanceLabel.value}`
       },
       spec: {
         type: 'LoadBalancer',
