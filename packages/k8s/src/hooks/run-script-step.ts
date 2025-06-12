@@ -67,7 +67,7 @@ export async function runScriptStep(
         rootCertClientAndKey.caCertAndkey.cert,
         rootCertClientAndKey.clientCertAndKey.cert,
         rootCertClientAndKey.clientCertAndKey.privateKey,
-        ip,
+        ip!!,
         GRPC_SCRIPT_EXECUTOR_PORT
       )
     } else {
