@@ -49,6 +49,8 @@ export async function runScriptStep(
       if (status?.podIP === undefined) {
         throw new Error(`Failed to get pod ${podName} IP`)
       }
+      console.log(`Pod is ${JSON.stringify(status)}`)
+      console.log(`Pod is is ${status.podIP}`)
 
       const rootCertClientAndKey = await getRootCertClientCertAndKey()
       console.log('successfully retrieved root cert, client and key')
