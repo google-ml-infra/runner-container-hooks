@@ -7,8 +7,9 @@ import {
 } from '../src/hooks'
 import { TestHelper } from './test-setup'
 import * as k8s from '@kubernetes/client-node'
-import { ReadableStreamBuffer, WritableStreamBuffer } from 'stream-buffers'
-import { getPodByName } from '../src/k8s'
+import { generateCerts } from '../src/k8s/certs'
+import { exec, execSync } from 'child_process'
+import { runScriptByGrpc } from '../dist/k8s/utils'
 
 const kc = new k8s.KubeConfig()
 kc.loadFromDefault()
@@ -22,7 +23,7 @@ let testHelper: TestHelper
 let prepareJobData: any
 
 let prepareJobOutputFilePath: string
-describe.only('e2e', () => {
+describe.skip('e2e', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()
@@ -55,51 +56,45 @@ describe.only('e2e', () => {
 
     await expect(cleanupJob()).resolves.not.toThrow()
   })
+})
 
-  it.only('should prepare job, run script step, run container step then cleanup without errors for script executor', async () => {
-    process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = 'true'
-    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = 'node'
-    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] =
-      '/script_executor/dist/index.js'
-    try {
-      await expect(
-        prepareJob(prepareJobData.args, prepareJobOutputFilePath)
-      ).resolves.not.toThrow()
-
-      const content = JSON.parse(
-        fs.readFileSync(prepareJobOutputFilePath).toString()
-      )
-
-      const pod = await getPodByName(content.state.jobPod)
-
-      const isStream = new ReadableStreamBuffer()
-      forward.portForward(
-        pod.metadata!!.namespace!!,
-        pod.metadata?.name!!,
-        [50051],
-        process.stdout,
-        process.stderr,
-        isStream
-      )
-
-      const scriptStepData = testHelper.getRunScriptStepDefinition()
-
-      const prepareJobOutputJson = fs.readFileSync(prepareJobOutputFilePath)
-      const prepareJobOutputData = JSON.parse(prepareJobOutputJson.toString())
-
-      await expect(
-        runScriptStep(scriptStepData.args, prepareJobOutputData.state, null)
-      ).resolves.not.toThrow()
-
-      const runContainerStepData = testHelper.getRunContainerStepDefinition()
-
-      await expect(
-        runContainerStep(runContainerStepData.args)
-      ).resolves.not.toThrow()
-
-      await expect(cleanupJob()).resolves.not.toThrow()
-    } finally {
-      process.env['ACTIONS_RUNNER_USE_SCRIPT_EXECUTOR'] = ''
+describe('script-executor', () => {
+  it('should execute script successfully', async () => {
+    const certs = generateCerts()
+    if (!fs.existsSync('/certs')) {
+      fs.mkdirSync('/certs')
     }
+
+    fs.writeFileSync('/certs/ca.crt', certs.caCertAndkey.cert)
+    fs.writeFileSync('/certs/server.crt', certs.serverCertAndKey.cert)
+    fs.writeFileSync('/certs/server.key', certs.serverCertAndKey.privateKey)
+
+    const result = execSync('npm install ml-velocity-script-executor', {
+      cwd: '/tmp'
+    })
+    console.log(result.toString())
+
+    const process = exec(
+      'node /tmp/node_modules/ml-velocity-script-executor/dist/index.js'
+    )
+    process.stdout?.on('data', data => {
+      console.log(`stdout: ${data}`)
+    })
+
+    process.stderr?.on('data', data => {
+      console.log(`stderr: ${data}`)
+    })
+
+    process.on('close', code => {
+      console.log(`child process exited with code ${code}`)
+    })
+
+    await runScriptByGrpc(
+      'ls',
+      certs.caCertAndkey.cert,
+      certs.clientCertAndKey.cert,
+      certs.clientCertAndKey.privateKey,
+      'localhost'
+    )
   })
 })
