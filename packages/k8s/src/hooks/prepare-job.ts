@@ -14,8 +14,7 @@ import {
   isPodContainerAlpine,
   prunePods,
   waitForPodPhases,
-  getPrepareJobTimeoutSeconds,
-  getPodByName
+  getPrepareJobTimeoutSeconds
 } from '../k8s'
 import {
   containerVolumes,
@@ -103,17 +102,6 @@ export async function prepareJob(
       getPrepareJobTimeoutSeconds()
     )
   } catch (err) {
-    console.log(`QUOCT Error is ${err}`)
-    const pod = await getPodByName(createdPod.metadata.name)
-    console.log(JSON.stringify(pod.status))
-    console.log(JSON.stringify(pod))
-
-    const workflowPod = await getPodByName(
-      `${createdPod.metadata.name}-workflow`
-    )
-    console.log(JSON.stringify(workflowPod.status))
-    console.log(JSON.stringify(workflowPod))
-
     await prunePods()
     throw new Error(`pod failed to come online with error: ${err}`)
   }
