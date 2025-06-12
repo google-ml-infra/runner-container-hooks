@@ -6,6 +6,14 @@ import {
   runScriptStep
 } from '../src/hooks'
 import { TestHelper } from './test-setup'
+import * as k8s from '@kubernetes/client-node'
+import { ReadableStreamBuffer, WritableStreamBuffer } from 'stream-buffers'
+import { getPodByName } from '../src/k8s'
+
+const kc = new k8s.KubeConfig()
+kc.loadFromDefault()
+
+const forward = new k8s.PortForward(kc)
 
 jest.useRealTimers()
 
@@ -57,6 +65,22 @@ describe.only('e2e', () => {
       await expect(
         prepareJob(prepareJobData.args, prepareJobOutputFilePath)
       ).resolves.not.toThrow()
+
+      const content = JSON.parse(
+        fs.readFileSync(prepareJobOutputFilePath).toString()
+      )
+
+      const pod = await getPodByName(content.state.jobPod)
+
+      const isStream = new ReadableStreamBuffer()
+      forward.portForward(
+        pod.metadata!!.namespace!!,
+        pod.metadata?.name!!,
+        [50051],
+        process.stdout,
+        process.stderr,
+        isStream
+      )
 
       const scriptStepData = testHelper.getRunScriptStepDefinition()
 
