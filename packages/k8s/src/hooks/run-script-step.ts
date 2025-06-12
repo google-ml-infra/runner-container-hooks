@@ -3,7 +3,12 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { execPodStep, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
+import {
+  execPodStep,
+  getPodStatus,
+  getRootCertClientCertAndKey,
+  setUpService
+} from '../k8s'
 import {
   fixArgs,
   runScriptByGrpc,
@@ -53,12 +58,16 @@ export async function runScriptStep(
         JSON.stringify(rootCertClientAndKey.clientCertAndKey.privateKey)
       )
       core.debug('successfully retrieved root cert, client and key')
+      const service = await setUpService()
+      console.log(JSON.stringify(service))
+      const ip = service.status!!.loadBalancer!!.ingress!![0].ip
+      console.log(`IP is ${ip}`)
       await runScriptByGrpc(
         command,
         rootCertClientAndKey.caCertAndkey.cert,
         rootCertClientAndKey.clientCertAndKey.cert,
         rootCertClientAndKey.clientCertAndKey.privateKey,
-        'localhost',
+        ip,
         GRPC_SCRIPT_EXECUTOR_PORT
       )
     } else {

@@ -534,6 +534,38 @@ export async function prunePods(): Promise<void> {
   )
 }
 
+/**
+ * kind: Service
+apiVersion: v1
+metadata:
+  name: foo-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: http-echo
+  ports:
+  - port: 5678
+    targetPort: 8080
+ */
+export async function setUpService(): Promise<k8s.V1Service> {
+  const instanceLabel = new RunnerInstanceLabel()
+  return await k8sApi.createNamespacedService({
+    namespace: namespace(),
+    body: {
+      spec: {
+        type: 'LoadBalancer',
+        selector: { [instanceLabel.key]: instanceLabel.value },
+        ports: [
+          {
+            port: 50051,
+            targetPort: 50051
+          }
+        ]
+      }
+    }
+  })
+}
+
 export async function getPodStatus(
   name: string
 ): Promise<k8s.V1PodStatus | undefined> {
