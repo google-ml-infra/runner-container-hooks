@@ -552,6 +552,9 @@ export async function setUpService(): Promise<k8s.V1Service> {
   return await k8sApi.createNamespacedService({
     namespace: namespace(),
     body: {
+      metadata: {
+        name: `service-${instanceLabel.toString()}`.substring(0, 60)
+      },
       spec: {
         type: 'LoadBalancer',
         selector: { [instanceLabel.key]: instanceLabel.value },
