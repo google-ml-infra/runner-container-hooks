@@ -87,6 +87,15 @@ describe('script-executor', () => {
     return server
   }
 
+  function cleanupChildProcess(childProcess: ChildProcess) {
+    childProcess.stdout?.destroy()
+    childProcess.stderr?.destroy()
+    childProcess.stdin?.destroy()
+
+    childProcess.kill()
+    childProcess.unref()
+  }
+
   let certs: MTLSCertAndPrivateKey
   beforeAll(() => {
     certs = generateCerts()
@@ -120,8 +129,7 @@ describe('script-executor', () => {
         )
       ).resolves.not.toThrow()
     } finally {
-      serverProcess.kill()
-      serverProcess.unref()
+      cleanupChildProcess(serverProcess)
     }
   })
 
@@ -153,8 +161,7 @@ describe('script-executor', () => {
         )
       ).rejects.toThrow('UNAVAILABLE')
     } finally {
-      serverProcess.kill()
-      serverProcess.unref()
+      cleanupChildProcess(serverProcess)
     }
   })
 })
