@@ -121,6 +121,7 @@ describe('script-executor', () => {
       ).resolves.not.toThrow()
     } finally {
       serverProcess.kill()
+      serverProcess.unref()
     }
   })
 
@@ -140,8 +141,20 @@ describe('script-executor', () => {
           50052
         )
       ).rejects.toThrow('UNAVAILABLE')
+
+      await expect(
+        runScriptByGrpc(
+          'ls',
+          certs.caCertAndkey.cert,
+          newCerts.clientCertAndKey.cert,
+          newCerts.clientCertAndKey.privateKey,
+          'localhost',
+          50052
+        )
+      ).rejects.toThrow('UNAVAILABLE')
     } finally {
       serverProcess.kill()
+      serverProcess.unref()
     }
   })
 })
