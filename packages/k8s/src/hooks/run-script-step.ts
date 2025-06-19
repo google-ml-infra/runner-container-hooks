@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { execPodStep, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
+import { clonePersistentVolume, execPodStep, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
 import {
   fixArgs,
   runScriptByGrpc,
@@ -17,6 +17,9 @@ export async function runScriptStep(
   state,
   responseFile
 ): Promise<void> {
+  core.debug("Creating post test persistent volume claim")
+  await clonePersistentVolume("quoct-post-test")
+
   const { entryPoint, entryPointArgs, environmentVariables } = args
   const { containerPath, runnerPath } = writeEntryPointScript(
     args.workingDirectory,

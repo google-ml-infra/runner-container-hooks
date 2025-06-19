@@ -275,6 +275,44 @@ export async function deletePod(podName: string): Promise<void> {
   })
 }
 
+export async function clonePersistentVolume(newName: string): Promise<void> {
+  const claimName = getVolumeClaimName()
+  const claim = await k8sApi.readNamespacedPersistentVolumeClaim({
+    namespace: namespace(),
+    name: claimName
+  })
+  core.debug(`Getting volume claim name ${JSON.stringify(claim.spec)}`)
+
+  const claimStatus = await k8sApi.readNamespacedPersistentVolumeClaimStatus({
+    namespace: namespace(),
+    name: claimName
+  })
+  core.debug(`Getting volume claim status name ${JSON.stringify(claimStatus.spec)}`)
+
+  await k8sApi.createNamespacedPersistentVolumeClaim({
+    namespace: namespace(),
+    body: {
+      metadata: {
+        name: newName,
+        namespace: namespace()
+      },
+      spec: {
+        storageClassName: claim.spec?.storageClassName,
+        dataSource: {
+          name: claim.metadata!!.name!!,
+          kind: "PersistentVolumeClaim"
+        },
+        accessModes: ["ReadWriteOnce"],
+        resources: {
+          requests: {
+            storage: claim.spec?.resources?.requests?.storage || "500Gi"
+          }
+        }
+      }
+    }
+  })
+}
+
 export async function execPodStep(
   command: string[],
   podName: string,

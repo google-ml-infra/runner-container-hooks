@@ -14,7 +14,8 @@ import {
   isPodContainerAlpine,
   prunePods,
   waitForPodPhases,
-  getPrepareJobTimeoutSeconds
+  getPrepareJobTimeoutSeconds,
+  clonePersistentVolume
 } from '../k8s'
 import {
   containerVolumes,
@@ -29,7 +30,7 @@ import {
   SCRIPT_EXECUTOR_ENTRY_POINT,
   SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
 } from '../k8s/utils'
-import { CONTAINER_EXTENSION_PREFIX, JOB_CONTAINER_NAME } from './constants'
+import { CONTAINER_EXTENSION_PREFIX, getVolumeClaimName, JOB_CONTAINER_NAME } from './constants'
 
 export async function prepareJob(
   args: PrepareJobArgs,
@@ -107,6 +108,9 @@ export async function prepareJob(
   }
 
   core.debug('Job pod is ready for traffic')
+
+  core.debug('generate another persistent volume claim')
+  await clonePersistentVolume("quoct-pre-test")
 
   let isAlpine = false
   try {
