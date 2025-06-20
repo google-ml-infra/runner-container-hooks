@@ -134,7 +134,7 @@ export async function prepareJob(
   createdPod.spec!!.nodeName = ""
   const previousPodMetadata = createdPod.metadata
   createdPod.metadata = {
-    name: "quoct-pre-test",
+    name: "quoct-pre-test-workflow",
     namespace: previousPodMetadata.namespace,
     annotations: previousPodMetadata.annotations,
     labels: previousPodMetadata.labels,
@@ -150,6 +150,13 @@ export async function prepareJob(
 
   const newPod = await createK8sPod(createdPod!!)
   core.debug(`Created new pod ${JSON.stringify(newPod)}`)
+  await waitForPodPhases(
+    newPod!!.metadata!!.name!!,
+    new Set([PodPhase.RUNNING]),
+    new Set([PodPhase.PENDING]),
+    getPrepareJobTimeoutSeconds()
+  )
+  core.debug(`Pod quoct-pre-test-workflow is now ready`)
 }
 
 function generateResponseFile(
