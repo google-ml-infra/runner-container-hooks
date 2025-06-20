@@ -115,19 +115,6 @@ export async function prepareJob(
   await clonePersistentVolume("quoct-pre-test")
   core.debug("creating pod helper")
 
-  createdPod.spec!!.nodeName = ""
-  core.debug(`volume are ${JSON.stringify(createdPod.spec!!.volumes!!)}`)
-
-  const volume = createdPod.spec!!.volumes!!.find(vol => vol.name === 'work')
-  core.debug(`volume is ${JSON.stringify(volume)}`)
-  volume!!.persistentVolumeClaim = {
-    claimName: "quoct-pre-test"
-  }
-  core.debug(`volumes are now ${JSON.stringify(createdPod.spec!!.volumes!!)}`)
-  createdPod.metadata!!.name = "quoct-pre-test"
-
-  await createK8sPod(createdPod)
-
   let isAlpine = false
   try {
     isAlpine = await isPodContainerAlpine(
@@ -143,6 +130,25 @@ export async function prepareJob(
   }
   core.debug(`Setting isAlpine to ${isAlpine}`)
   generateResponseFile(responseFile, args, createdPod, isAlpine)
+
+  createdPod.spec!!.nodeName = ""
+  const previousPodMetadata = createdPod.metadata
+  createdPod.metadata = {
+    name: "quoct-pre-test",
+    namespace: previousPodMetadata.namespace,
+    annotations: previousPodMetadata.annotations,
+    labels: previousPodMetadata.labels,
+  }
+  core.debug(`volume are ${JSON.stringify(createdPod.spec!!.volumes!!)}`)
+
+  const volume = createdPod.spec!!.volumes!!.find(vol => vol.name === 'work')
+  core.debug(`volume is ${JSON.stringify(volume)}`)
+  volume!!.persistentVolumeClaim = {
+    claimName: "quoct-pre-test"
+  }
+  core.debug(`volumes are now ${JSON.stringify(createdPod.spec!!.volumes!!)}`)
+
+  await createK8sPod(createdPod)
 }
 
 function generateResponseFile(

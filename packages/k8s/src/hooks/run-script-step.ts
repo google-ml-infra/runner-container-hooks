@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { clonePersistentVolume, execPodStep, getPod, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
+import { clonePersistentVolume, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
 import {
   fixArgs,
   runScriptByGrpc,
@@ -39,6 +39,18 @@ export async function runScriptStep(
     core.debug("creating pod helper")
   
     const createdPod = await getPod(state.podName)
+    if (!createPod) {
+      core.debug("Cannot find " + state.podName)
+      throw new Error("cannot find created pod")
+    }
+    const previousPodMetadata = createdPod!!.metadata
+    createdPod!!.metadata = {
+      name: "quoct-pre-test",
+      namespace: previousPodMetadata!!.namespace,
+      annotations: previousPodMetadata!!.annotations,
+      labels: previousPodMetadata!!.labels,
+    }
+
     createdPod!!.spec!!.nodeName = ""
     core.debug(`volume are ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
   
@@ -48,7 +60,7 @@ export async function runScriptStep(
       claimName: "quoct-post-test"
     }
     core.debug(`volumes are now ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
-    createdPod!!.metadata!!.name = "quoct-post-test"  
+    await createK8sPod(createdPod!!)
   } else {
     core.debug("Found quoct pod " + JSON.stringify(createdQuoctPod))
   }
