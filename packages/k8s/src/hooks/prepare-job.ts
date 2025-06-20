@@ -111,10 +111,6 @@ export async function prepareJob(
 
   core.debug('Job pod is ready for traffic')
 
-  core.debug("clone persistent volume for test")
-  await clonePersistentVolume("quoct-pre-test")
-  core.debug("creating pod helper")
-
   let isAlpine = false
   try {
     isAlpine = await isPodContainerAlpine(
@@ -130,6 +126,10 @@ export async function prepareJob(
   }
   core.debug(`Setting isAlpine to ${isAlpine}`)
   generateResponseFile(responseFile, args, createdPod, isAlpine)
+
+  core.debug("clone persistent volume for test")
+  await clonePersistentVolume("quoct-pre-test")
+  core.debug("creating pod helper")
 
   createdPod.spec!!.nodeName = ""
   const previousPodMetadata = createdPod.metadata
@@ -148,7 +148,8 @@ export async function prepareJob(
   }
   core.debug(`volumes are now ${JSON.stringify(createdPod.spec!!.volumes!!)}`)
 
-  await createK8sPod(createdPod)
+  const newPod = await createK8sPod(createdPod!!)
+  core.debug(`Created new pod ${JSON.stringify(newPod)}`)
 }
 
 function generateResponseFile(

@@ -35,7 +35,7 @@ export async function runScriptStep(
   if (!createdQuoctPod) {
     core.debug("Could not find quoct pod")
     core.debug("clone persistent volume for test")
-    await clonePersistentVolume("quoct-pre-test")
+    await clonePersistentVolume("quoct-post-test")
     core.debug("creating pod helper")
   
     const createdPod = await getPod(state.podName)
@@ -45,7 +45,7 @@ export async function runScriptStep(
     }
     const previousPodMetadata = createdPod!!.metadata
     createdPod!!.metadata = {
-      name: "quoct-pre-test",
+      name: "quoct-post-test",
       namespace: previousPodMetadata!!.namespace,
       annotations: previousPodMetadata!!.annotations,
       labels: previousPodMetadata!!.labels,
@@ -60,7 +60,8 @@ export async function runScriptStep(
       claimName: "quoct-post-test"
     }
     core.debug(`volumes are now ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
-    await createK8sPod(createdPod!!)
+    const newPod = await createK8sPod(createdPod!!)
+    core.debug(`Created new pod ${JSON.stringify(newPod)}`)
   } else {
     core.debug("Found quoct pod " + JSON.stringify(createdQuoctPod))
   }
