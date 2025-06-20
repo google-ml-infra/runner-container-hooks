@@ -15,7 +15,9 @@ import {
   prunePods,
   waitForPodPhases,
   getPrepareJobTimeoutSeconds,
-  clonePersistentVolume
+  clonePersistentVolume,
+  createPodHelper,
+  createK8sPod
 } from '../k8s'
 import {
   containerVolumes,
@@ -73,6 +75,26 @@ export async function prepareJob(
     throw new Error('No containers exist, skipping hook invocation')
   }
 
+  core.debug("Clone prepre test")
+  await clonePersistentVolume("quoct-pre-pre-test")
+  core.debug("creating pod helper")
+  const quoctPod = await createPodHelper(container,
+    services,
+    args.container.registry,
+    extension)
+  quoctPod.spec!!.nodeName = ""
+  core.debug(`volume are ${JSON.stringify(quoctPod.spec!!.volumes!!)}`)
+
+  const volume = quoctPod.spec!!.volumes!!.find(vol => vol.name === 'work')
+  core.debug(`volume is ${JSON.stringify(volume)}`)
+  volume!!.persistentVolumeClaim = {
+    claimName: "quoct-pre-pre-test"
+  }
+  core.debug(`volumes are now ${JSON.stringify(quoctPod.spec!!.volumes!!)}`)
+  quoctPod.metadata!!.name = "quoct-pre-pre-test"
+
+  await createK8sPod(quoctPod)
+
   let createdPod: k8s.V1Pod | undefined = undefined
   try {
     createdPod = await createPod(
@@ -111,6 +133,16 @@ export async function prepareJob(
 
   core.debug('generate another persistent volume claim')
   await clonePersistentVolume("quoct-pre-test")
+
+  core.debug("creating another pod")
+  core.debug(`volume is ${JSON.stringify(volume)}`)
+  volume!!.persistentVolumeClaim = {
+    claimName: "quoct-pre-test"
+  }
+  core.debug(`volumes are now ${JSON.stringify(quoctPod.spec!!.volumes!!)}`)
+  quoctPod.metadata!!.name = "quoct-pre-test"
+
+  await createK8sPod(quoctPod)
 
   let isAlpine = false
   try {

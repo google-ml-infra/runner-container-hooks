@@ -67,7 +67,7 @@ export const requiredPermissions = [
   }
 ]
 
-export async function createPod(
+export async function createPodHelper(
   jobContainer?: k8s.V1Container,
   services?: k8s.V1Container[],
   registry?: Registry,
@@ -146,10 +146,27 @@ export async function createPod(
   if (extension?.spec) {
     mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
+  return appPod
+}
 
+export async function createPod(
+  jobContainer?: k8s.V1Container,
+  services?: k8s.V1Container[],
+  registry?: Registry,
+  extension?: k8s.V1PodTemplateSpec
+): Promise<k8s.V1Pod> {
   return await k8sApi.createNamespacedPod({
     namespace: namespace(),
-    body: appPod
+    body: await createPodHelper(jobContainer, services, registry, extension)
+  })
+}
+
+export async function createK8sPod(
+  pod: k8s.V1Pod
+): Promise<k8s.V1Pod> {
+  return await k8sApi.createNamespacedPod({
+    namespace: namespace(),
+    body: pod
   })
 }
 
