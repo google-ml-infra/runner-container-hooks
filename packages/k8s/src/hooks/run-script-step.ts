@@ -29,14 +29,14 @@ export async function runScriptStep(
 
   let createdQuoctPod;
   try {
-   createdQuoctPod = await getPod("quoct-post-test")
+   createdQuoctPod = await getPod("quoct-post-test-workflow")
   } catch (error) {
     core.debug("Error getting quoct pod " + error)
   }
   if (!createdQuoctPod) {
     core.debug("Could not find quoct pod")
     core.debug("clone persistent volume for test")
-    await clonePersistentVolume("quoct-post-test")
+    await clonePersistentVolume("quoct-post-test-workflow")
     core.debug("creating pod helper")
   
     const createdPod = await getPod(state.jobPod)
@@ -58,7 +58,7 @@ export async function runScriptStep(
     const volume = createdPod!!.spec!!.volumes!!.find(vol => vol.name === 'work')
     core.debug(`volume is ${JSON.stringify(volume)}`)
     volume!!.persistentVolumeClaim = {
-      claimName: "quoct-post-test"
+      claimName: "quoct-post-test-workflow"
     }
     core.debug(`volumes are now ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
     const newPod = await createK8sPod(createdPod!!)
@@ -125,6 +125,7 @@ export async function runScriptStep(
         core.debug(`${err}`)
       }
 
+      core.debug('execing into quoct post-job pod')
       try {
         await execPodStep(
           [args.entryPoint, ...args.entryPointArgs],
