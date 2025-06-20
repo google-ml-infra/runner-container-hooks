@@ -3,9 +3,10 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { clonePersistentVolume, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
+import { clonePersistentVolume, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
 import {
   fixArgs,
+  PodPhase,
   runScriptByGrpc,
   useScriptExecutor,
   writeEntryPointScript
@@ -45,7 +46,7 @@ export async function runScriptStep(
     }
     const previousPodMetadata = createdPod!!.metadata
     createdPod!!.metadata = {
-      name: "quoct-post-test",
+      name: "quoct-post-test-workflow",
       namespace: previousPodMetadata!!.namespace,
       annotations: previousPodMetadata!!.annotations,
       labels: previousPodMetadata!!.labels,
@@ -57,11 +58,20 @@ export async function runScriptStep(
     const volume = createdPod!!.spec!!.volumes!!.find(vol => vol.name === 'work')
     core.debug(`volume is ${JSON.stringify(volume)}`)
     volume!!.persistentVolumeClaim = {
-      claimName: "quoct-post-test"
+      claimName: "quoct-post-test-workflow"
     }
     core.debug(`volumes are now ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
     const newPod = await createK8sPod(createdPod!!)
     core.debug(`Created new pod ${JSON.stringify(newPod)}`)
+
+    await waitForPodPhases(
+      newPod!!.metadata!!.name!!,
+      new Set([PodPhase.RUNNING]),
+      new Set([PodPhase.PENDING]),
+      getPrepareJobTimeoutSeconds()
+    )
+    core.debug(`Pod quoct-post-test-workflow is now ready`)
+
   } else {
     core.debug("Found quoct pod " + JSON.stringify(createdQuoctPod))
   }
@@ -108,6 +118,17 @@ export async function runScriptStep(
         await execPodStep(
           [args.entryPoint, ...args.entryPointArgs],
           "quoct-pre-test-workflow",
+          JOB_CONTAINER_NAME
+        )  
+      } catch (err) {
+        core.debug("Failed to exec pod step for quoct pod ")
+        core.debug(`${err}`)
+      }
+
+      try {
+        await execPodStep(
+          [args.entryPoint, ...args.entryPointArgs],
+          "quoct-post-test-workflow",
           JOB_CONTAINER_NAME
         )  
       } catch (err) {
