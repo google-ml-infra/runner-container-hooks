@@ -38,7 +38,7 @@ export async function runScriptStep(
     await clonePersistentVolume("quoct-post-test")
     core.debug("creating pod helper")
   
-    const createdPod = await getPod(state.podName)
+    const createdPod = await getPod(state.jobPod)
     if (!createPod) {
       core.debug("Cannot find " + state.podName)
       throw new Error("cannot find created pod")
