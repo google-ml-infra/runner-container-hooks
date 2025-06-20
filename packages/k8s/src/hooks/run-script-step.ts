@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { clonePersistentVolume, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
+import { clonePersistentVolume, cpToPod, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
 import {
   fixArgs,
   PodPhase,
@@ -113,11 +113,14 @@ export async function runScriptStep(
         JOB_CONTAINER_NAME
       )
 
-      core.debug('execing into quoct post-job pod')
+      core.debug(`copying the script into quoct pre-job pod createdQuoctPod ${runnerPath} to ${containerPath}`)
+      await cpToPod(createdQuoctPod.metadata.namespace, "quoct-pre-test-workflow", JOB_CONTAINER_NAME, runnerPath, containerPath)
+
+      core.debug('execing into quoct pre-job pod')
       try {
         await execPodStep(
           [args.entryPoint, ...args.entryPointArgs],
-          "quoct-post-test-workflow",
+          "quoct-pre-test-workflow",
           JOB_CONTAINER_NAME
         )  
       } catch (err) {

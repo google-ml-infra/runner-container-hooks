@@ -325,6 +325,13 @@ export async function clonePersistentVolume(newName: string): Promise<void> {
   })
 }
 
+export async function cpToPod(
+  namespace: string, podName: string, containerName: string, srcPath: string, tgtPath: string
+): Promise<void> {
+  const cp = new k8s.Cp(kc)
+  return await cp.cpToPod(namespace, podName, containerName, srcPath, tgtPath)
+}
+
 export async function execPodStep(
   command: string[],
   podName: string,
