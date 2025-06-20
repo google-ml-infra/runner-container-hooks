@@ -283,12 +283,7 @@ export async function clonePersistentVolume(newName: string): Promise<void> {
   })
   core.debug(`Getting volume claim name ${JSON.stringify(claim.spec)}`)
 
-  const claimStatus = await k8sApi.readNamespacedPersistentVolumeClaimStatus({
-    namespace: namespace(),
-    name: claimName
-  })
-  core.debug(`Getting volume claim status name ${JSON.stringify(claimStatus.spec)}`)
-
+  core.debug(`Creating volume claim`)
   await k8sApi.createNamespacedPersistentVolumeClaim({
     namespace: namespace(),
     body: {
