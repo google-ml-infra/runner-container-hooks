@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import * as fs from 'fs'
 import * as core from '@actions/core'
+import { v4 as uuidv4 } from 'uuid'
 
 import { RunScriptStepArgs } from 'hooklib'
 import { clonePersistentVolume, execPodStep, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
@@ -19,11 +20,12 @@ export async function runScriptStep(
   state,
   responseFile
 ): Promise<void> {
+  core.debug(`Job pod is ${state.jobPod}`)
   if (clonedPersistentVolume[state.jobPod]) {
     core.debug("Skipped cloning PVC")
   } else {
     core.debug("Creating post test persistent volume claim")
-    await clonePersistentVolume("quoct-post-test")
+    await clonePersistentVolume(`quoct-post-test-${uuidv4().substring(0,5)}`)
     clonedPersistentVolume[state.jobPod] = "cloned"  
   }
 
