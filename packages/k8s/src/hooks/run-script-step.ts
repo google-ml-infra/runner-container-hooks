@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { clonePersistentVolume, execPodStep, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
+import { clonePersistentVolume, execPodStep, getPod, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
 import {
   fixArgs,
   runScriptByGrpc,
@@ -11,8 +11,6 @@ import {
   writeEntryPointScript
 } from '../k8s/utils'
 import { GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
-
-const clonedPersistentVolume: {[key: string] : string} = {}
 
 export async function runScriptStep(
   args: RunScriptStepArgs,
@@ -27,6 +25,33 @@ export async function runScriptStep(
     args.prependPath,
     environmentVariables
   )
+
+  let createdQuoctPod;
+  try {
+   createdQuoctPod = await getPod("quoct-post-test")
+  } catch (error) {
+    core.debug("Error getting quoct pod " + error)
+  }
+  if (!createdQuoctPod) {
+    core.debug("Could not find quoct pod")
+    core.debug("clone persistent volume for test")
+    await clonePersistentVolume("quoct-pre-test")
+    core.debug("creating pod helper")
+  
+    const createdPod = await getPod(state.podName)
+    createdPod!!.spec!!.nodeName = ""
+    core.debug(`volume are ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
+  
+    const volume = createdPod!!.spec!!.volumes!!.find(vol => vol.name === 'work')
+    core.debug(`volume is ${JSON.stringify(volume)}`)
+    volume!!.persistentVolumeClaim = {
+      claimName: "quoct-post-test"
+    }
+    core.debug(`volumes are now ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
+    createdPod!!.metadata!!.name = "quoct-post-test"  
+  } else {
+    core.debug("Found quoct pod " + JSON.stringify(createdQuoctPod))
+  }
 
   args.entryPoint = 'sh'
   args.entryPointArgs = ['-e', containerPath]
@@ -64,6 +89,13 @@ export async function runScriptStep(
         podName,
         JOB_CONTAINER_NAME
       )
+
+      core.debug('execing into quoct pod')
+      await execPodStep(
+        [args.entryPoint, ...args.entryPointArgs],
+        "quoct-post-test",
+        JOB_CONTAINER_NAME
+      )      
     }
   } catch (err) {
     core.debug(`execPodStep failed: ${JSON.stringify(err)}`)

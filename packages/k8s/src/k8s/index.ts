@@ -581,6 +581,15 @@ export async function prunePods(): Promise<void> {
   )
 }
 
+export async function getPod(
+  name: string
+): Promise<k8s.V1Pod | undefined> {
+  return await k8sApi.readNamespacedPod({
+    name,
+    namespace: namespace()
+  })
+}
+
 export async function getPodStatus(
   name: string
 ): Promise<k8s.V1PodStatus | undefined> {
