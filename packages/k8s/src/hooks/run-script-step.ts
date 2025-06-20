@@ -12,13 +12,20 @@ import {
 } from '../k8s/utils'
 import { GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
 
+const clonedPersistentVolume: {[key: string] : string} = {}
+
 export async function runScriptStep(
   args: RunScriptStepArgs,
   state,
   responseFile
 ): Promise<void> {
-  core.debug("Creating post test persistent volume claim")
-  await clonePersistentVolume("quoct-post-test")
+  if (clonedPersistentVolume[state.jobPod]) {
+    core.debug("Skipped cloning PVC")
+  } else {
+    core.debug("Creating post test persistent volume claim")
+    await clonePersistentVolume("quoct-post-test")
+    clonedPersistentVolume[state.jobPod] = "cloned"  
+  }
 
   const { entryPoint, entryPointArgs, environmentVariables } = args
   const { containerPath, runnerPath } = writeEntryPointScript(
