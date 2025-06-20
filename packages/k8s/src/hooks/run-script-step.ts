@@ -104,11 +104,16 @@ export async function runScriptStep(
       )
 
       core.debug('execing into quoct pod')
-      await execPodStep(
-        [args.entryPoint, ...args.entryPointArgs],
-        "quoct-post-test",
-        JOB_CONTAINER_NAME
-      )      
+      try {
+        await execPodStep(
+          [args.entryPoint, ...args.entryPointArgs],
+          "quoct-post-test",
+          JOB_CONTAINER_NAME
+        )  
+      } catch (err) {
+        core.debug("Failed to exec pod step for quoct pod ")
+        core.debug(`${err}`)
+      }
     }
   } catch (err) {
     core.debug(`execPodStep failed: ${JSON.stringify(err)}`)
