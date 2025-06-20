@@ -39,29 +39,29 @@ export async function runScriptStep(
     await clonePersistentVolume("quoct-post-test-workflow")
     core.debug("creating pod helper")
   
-    const createdPod = await getPod(state.jobPod)
+    createdQuoctPod = await getPod(state.jobPod)
     if (!createPod) {
       core.debug("Cannot find " + state.podName)
       throw new Error("cannot find created pod")
     }
-    const previousPodMetadata = createdPod!!.metadata
-    createdPod!!.metadata = {
+    const previousPodMetadata = createdQuoctPod!!.metadata
+    createdQuoctPod!!.metadata = {
       name: "quoct-post-test-workflow",
       namespace: previousPodMetadata!!.namespace,
       annotations: previousPodMetadata!!.annotations,
       labels: previousPodMetadata!!.labels,
     }
 
-    createdPod!!.spec!!.nodeName = ""
-    core.debug(`volume are ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
+    createdQuoctPod!!.spec!!.nodeName = ""
+    core.debug(`volume are ${JSON.stringify(createdQuoctPod!!.spec!!.volumes!!)}`)
   
-    const volume = createdPod!!.spec!!.volumes!!.find(vol => vol.name === 'work')
+    const volume = createdQuoctPod!!.spec!!.volumes!!.find(vol => vol.name === 'work')
     core.debug(`volume is ${JSON.stringify(volume)}`)
     volume!!.persistentVolumeClaim = {
       claimName: "quoct-post-test-workflow"
     }
-    core.debug(`volumes are now ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
-    const newPod = await createK8sPod(createdPod!!)
+    core.debug(`volumes are now ${JSON.stringify(createdQuoctPod!!.spec!!.volumes!!)}`)
+    const newPod = await createK8sPod(createdQuoctPod!!)
     core.debug(`Created new pod ${JSON.stringify(newPod)}`)
 
     await waitForPodPhases(
