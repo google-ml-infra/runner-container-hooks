@@ -58,7 +58,7 @@ export async function runScriptStep(
     const volume = createdPod!!.spec!!.volumes!!.find(vol => vol.name === 'work')
     core.debug(`volume is ${JSON.stringify(volume)}`)
     volume!!.persistentVolumeClaim = {
-      claimName: "quoct-post-test-workflow"
+      claimName: "quoct-post-test"
     }
     core.debug(`volumes are now ${JSON.stringify(createdPod!!.spec!!.volumes!!)}`)
     const newPod = await createK8sPod(createdPod!!)
