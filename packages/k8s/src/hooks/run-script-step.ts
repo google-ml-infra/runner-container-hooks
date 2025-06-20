@@ -113,18 +113,6 @@ export async function runScriptStep(
         JOB_CONTAINER_NAME
       )
 
-      core.debug('execing into quoct pre-job pod')
-      try {
-        await execPodStep(
-          [args.entryPoint, ...args.entryPointArgs],
-          "quoct-pre-test-workflow",
-          JOB_CONTAINER_NAME
-        )  
-      } catch (err) {
-        core.debug("Failed to exec pod step for quoct pod ")
-        core.debug(`${err}`)
-      }
-
       core.debug('execing into quoct post-job pod')
       try {
         await execPodStep(
