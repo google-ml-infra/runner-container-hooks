@@ -8,6 +8,7 @@ import {
   fixArgs,
   PodPhase,
   runScriptByGrpc,
+  sleep,
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
@@ -115,6 +116,9 @@ export async function runScriptStep(
 
       core.debug(`copying the script into quoct pre-job pod createdQuoctPod ${runnerPath} to ${containerPath}`)
       await cpToPod(createdQuoctPod.metadata.namespace, "quoct-pre-test-workflow", JOB_CONTAINER_NAME, runnerPath, containerPath)
+      core.debug(`sleeeeeeeping`)
+
+      await sleep(10000)
 
       core.debug('execing into quoct pre-job pod')
       try {
@@ -122,7 +126,7 @@ export async function runScriptStep(
           [args.entryPoint, ...args.entryPointArgs],
           "quoct-pre-test-workflow",
           JOB_CONTAINER_NAME
-        )  
+        )
       } catch (err) {
         core.debug("Failed to exec pod step for quoct pod ")
         core.debug(`${err}`)
