@@ -1,5 +1,7 @@
 import * as core from '@actions/core'
 import * as k8s from '@kubernetes/client-node'
+import * as tar from 'tar'
+import * as os from 'os'
 import { ContainerInfo, Registry } from 'hooklib'
 import * as stream from 'stream'
 import {
@@ -21,6 +23,8 @@ import {
 } from './utils'
 import { generateCerts, MTLSCertAndPrivateKey } from './certs'
 import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
+import { createReadStream, existsSync } from 'fs'
 
 const kc = new k8s.KubeConfig()
 
@@ -328,8 +332,22 @@ export async function clonePersistentVolume(newName: string): Promise<void> {
 export async function cpToPod(
   namespace: string, podName: string, containerName: string, srcPath: string, tgtPath: string
 ): Promise<void> {
-  const cp = new k8s.Cp(kc)
-  return await cp.cpToPod(namespace, podName, containerName, srcPath, tgtPath)
+  const tmpFileName = await `${os.tmpdir()}/${randomUUID()}`
+  const command = ['tar', 'xf', '-', '-C', tgtPath]
+
+  core.debug(`Archiving ${srcPath} to ${tmpFileName}`)
+  await tar.c({ file: tmpFileName }, [srcPath])
+
+  // Ensure the tar file exists.
+  if (!existsSync(tmpFileName)) {
+    core.error(`Tar file ${tmpFileName} does not exist`)
+    throw new Error(`Tar file ${tmpFileName} does not exist`)
+  }
+  core.debug('Tar file is created')
+
+  const readStream = createReadStream(tmpFileName)
+  core.debug('Exec cpToPod')
+  await execPodStep(command, podName, containerName, readStream)
 }
 
 export async function execPodStep(

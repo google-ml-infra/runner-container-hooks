@@ -114,9 +114,6 @@ export async function runScriptStep(
         JOB_CONTAINER_NAME
       )
 
-      core.debug(`sleeeeeeeping before copying`)
-      await sleep(60000)
-
       core.debug(`copying the script into quoct pre-job pod createdQuoctPod ${runnerPath} to /__w/_temp`)
       await cpToPod(createdQuoctPod.metadata.namespace, "quoct-pre-test-workflow", JOB_CONTAINER_NAME, runnerPath, "/__w/_temp")
       core.debug(`sleeeeeeeping`)
