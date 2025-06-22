@@ -32,10 +32,7 @@ export async function runScriptStep(
   try {
     if (useScriptExecutor()) {
       core.info('using script executor')
-      const command = fixArgs([args.entryPoint, ...args.entryPointArgs]).join(
-        ' '
-      )
-      core.debug(`exec command ${command}`)
+      const command = fs.readFileSync(runnerPath)
 
       const status = await getPodStatus(podName)
       if (status?.phase === 'Succeeded') {
@@ -48,7 +45,7 @@ export async function runScriptStep(
       const rootCertClientAndKey = await getRootCertClientCertAndKey()
       core.debug('successfully retrieved root cert, client and key')
       await runScriptByGrpc(
-        command,
+        command.toString(),
         rootCertClientAndKey.caCertAndkey.cert,
         rootCertClientAndKey.clientCertAndKey.cert,
         rootCertClientAndKey.clientCertAndKey.privateKey,
