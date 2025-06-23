@@ -126,37 +126,6 @@ export async function prepareJob(
   }
   core.debug(`Setting isAlpine to ${isAlpine}`)
   generateResponseFile(responseFile, args, createdPod, isAlpine)
-
-  core.debug("clone persistent volume for test")
-  await clonePersistentVolume("quoct-pre-test")
-  core.debug("creating pod helper")
-
-  createdPod.spec!!.nodeName = ""
-  const previousPodMetadata = createdPod.metadata
-  createdPod.metadata = {
-    name: "quoct-pre-test-workflow",
-    namespace: previousPodMetadata.namespace,
-    annotations: previousPodMetadata.annotations,
-    labels: previousPodMetadata.labels,
-  }
-  core.debug(`volume are ${JSON.stringify(createdPod.spec!!.volumes!!)}`)
-
-  const volume = createdPod.spec!!.volumes!!.find(vol => vol.name === 'work')
-  core.debug(`volume is ${JSON.stringify(volume)}`)
-  volume!!.persistentVolumeClaim = {
-    claimName: "quoct-pre-test"
-  }
-  core.debug(`volumes are now ${JSON.stringify(createdPod.spec!!.volumes!!)}`)
-
-  const newPod = await createK8sPod(createdPod!!)
-  core.debug(`Created new pod ${JSON.stringify(newPod)}`)
-  await waitForPodPhases(
-    newPod!!.metadata!!.name!!,
-    new Set([PodPhase.RUNNING]),
-    new Set([PodPhase.PENDING]),
-    getPrepareJobTimeoutSeconds()
-  )
-  core.debug(`Pod quoct-pre-test-workflow is now ready`)
 }
 
 function generateResponseFile(

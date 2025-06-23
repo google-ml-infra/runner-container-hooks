@@ -100,22 +100,15 @@ async function runScriptStepWithGRPC(
       GRPC_SCRIPT_EXECUTOR_PORT
     )
 
-    core.debug(`sleeeeeeeping`)
-    await sleep(10000)
-
-    /*
-    core.debug('execing into quoct pre-job pod')
-    try {
-      await execPodStep(
-        [args.entryPoint, ...args.entryPointArgs],
-        "quoct-pre-test-workflow",
-        JOB_CONTAINER_NAME
-      )
-    } catch (err) {
-      core.debug("Failed to exec pod step for quoct pod ")
-      core.debug(`${err}`)
-    }
-      */
+    core.debug(`created pod status ${JSON.stringify(createdQuoctPod.status)}`)
+    await runScriptByGrpc(
+      scriptContent,
+      rootCertClientAndKey.caCertAndkey.cert,
+      rootCertClientAndKey.clientCertAndKey.cert,
+      rootCertClientAndKey.clientCertAndKey.privateKey,
+      createdQuoctPod.status.phase.podIP,
+      GRPC_SCRIPT_EXECUTOR_PORT
+    )
   } catch (err) {
     core.debug(
       `Run script Executor through GRPC failed: ${JSON.stringify(err)}`
