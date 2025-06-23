@@ -3,10 +3,11 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { clonePersistentVolume, cpToPod, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
+import { clonePersistentVolume, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
 import {
   fixArgs,
   PodPhase,
+  getEntryPointScriptContent,
   runScriptByGrpc,
   sleep,
   useScriptExecutor,
@@ -14,13 +15,12 @@ import {
 } from '../k8s/utils'
 import { GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
 
-export async function runScriptStep(
+async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
-  state,
-  responseFile
+  state
 ): Promise<void> {
   const { entryPoint, entryPointArgs, environmentVariables } = args
-  const { containerPath, runnerPath } = writeEntryPointScript(
+  const scriptContent = getEntryPointScriptContent(
     args.workingDirectory,
     entryPoint,
     entryPointArgs,
@@ -77,60 +77,82 @@ export async function runScriptStep(
     core.debug("Found quoct pod " + JSON.stringify(createdQuoctPod))
   }
 
+  try {
+    const podName = state.jobPod
+    core.info('using script executor')
+
+    const status = await getPodStatus(podName)
+    if (status?.phase === 'Succeeded') {
+      throw new Error(`Failed to get pod ${podName} status`)
+    }
+    if (status?.podIP === undefined) {
+      throw new Error(`Failed to get pod ${podName} IP`)
+    }
+
+    const rootCertClientAndKey = await getRootCertClientCertAndKey()
+    core.debug('successfully retrieved root cert, client and key')
+    await runScriptByGrpc(
+      scriptContent,
+      rootCertClientAndKey.caCertAndkey.cert,
+      rootCertClientAndKey.clientCertAndKey.cert,
+      rootCertClientAndKey.clientCertAndKey.privateKey,
+      status.podIP,
+      GRPC_SCRIPT_EXECUTOR_PORT
+    )
+
+    core.debug(`sleeeeeeeping`)
+    await sleep(10000)
+
+    /*
+    core.debug('execing into quoct pre-job pod')
+    try {
+      await execPodStep(
+        [args.entryPoint, ...args.entryPointArgs],
+        "quoct-pre-test-workflow",
+        JOB_CONTAINER_NAME
+      )
+    } catch (err) {
+      core.debug("Failed to exec pod step for quoct pod ")
+      core.debug(`${err}`)
+    }
+      */
+  } catch (err) {
+    core.debug(
+      `Run script Executor through GRPC failed: ${JSON.stringify(err)}`
+    )
+    const message = (err as any)?.response?.body?.message || err
+    throw new Error(`failed to run script step: ${message}`)
+  }
+}
+
+export async function runScriptStep(
+  args: RunScriptStepArgs,
+  state,
+  responseFile
+): Promise<void> {
+  if (useScriptExecutor()) {
+    return runScriptStepWithGRPC(args, state)
+  }
+
+  const { entryPoint, entryPointArgs, environmentVariables } = args
+  const { containerPath, runnerPath } = writeEntryPointScript(
+    args.workingDirectory,
+    entryPoint,
+    entryPointArgs,
+    args.prependPath,
+    environmentVariables
+  )
+
   args.entryPoint = 'sh'
   args.entryPointArgs = ['-e', containerPath]
   const podName = state.jobPod
   try {
-    if (useScriptExecutor()) {
-      core.info('using script executor')
-      const command = fixArgs([args.entryPoint, ...args.entryPointArgs]).join(
-        ' '
-      )
-      core.debug(`exec command ${command}`)
-
-      const status = await getPodStatus(podName)
-      if (status?.phase === 'Succeeded') {
-        throw new Error(`Failed to get pod ${podName} status`)
-      }
-      if (status?.podIP === undefined) {
-        throw new Error(`Failed to get pod ${podName} IP`)
-      }
-
-      const rootCertClientAndKey = await getRootCertClientCertAndKey()
-      core.debug('successfully retrieved root cert, client and key')
-      await runScriptByGrpc(
-        command,
-        rootCertClientAndKey.caCertAndkey.cert,
-        rootCertClientAndKey.clientCertAndKey.cert,
-        rootCertClientAndKey.clientCertAndKey.privateKey,
-        status.podIP,
-        GRPC_SCRIPT_EXECUTOR_PORT
-      )
-    } else {
-      core.info('using exec pod step')
-      await execPodStep(
-        [args.entryPoint, ...args.entryPointArgs],
-        podName,
-        JOB_CONTAINER_NAME
-      )
-
-      core.debug(`copying the script into quoct pre-job pod createdQuoctPod ${runnerPath} to /__w/_temp`)
-      await cpToPod(createdQuoctPod.metadata.namespace, "quoct-pre-test-workflow", JOB_CONTAINER_NAME, runnerPath, containerPath)
-      core.debug(`sleeeeeeeping`)
-      await sleep(10000)
-
-      core.debug('execing into quoct pre-job pod')
-      try {
-        await execPodStep(
-          [args.entryPoint, ...args.entryPointArgs],
-          "quoct-pre-test-workflow",
-          JOB_CONTAINER_NAME
-        )
-      } catch (err) {
-        core.debug("Failed to exec pod step for quoct pod ")
-        core.debug(`${err}`)
-      }
-    }
+    core.info('using exec pod step')
+    await execPodStep(
+      [args.entryPoint, ...args.entryPointArgs],
+      podName,
+      JOB_CONTAINER_NAME
+    )
   } catch (err) {
     core.debug(`execPodStep failed: ${JSON.stringify(err)}`)
     const message = (err as any)?.response?.body?.message || err
