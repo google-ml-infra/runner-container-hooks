@@ -106,7 +106,7 @@ async function runScriptStepWithGRPC(
       rootCertClientAndKey.caCertAndkey.cert,
       rootCertClientAndKey.clientCertAndKey.cert,
       rootCertClientAndKey.clientCertAndKey.privateKey,
-      createdQuoctPod.status.phase.podIP,
+      createdQuoctPod.status.podIP,
       GRPC_SCRIPT_EXECUTOR_PORT
     )
   } catch (err) {
