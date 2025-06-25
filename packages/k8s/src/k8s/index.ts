@@ -890,5 +890,175 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
 }
 
 export async function getJobSet(name) {
-  return await k8sCustomApi.getNamespacedCustomObject({group: "jobset.x-k8s.io", version: "v1alpha2", namespace: namespace(), plural: "jobsets", name})
+  return await k8sCustomApi.getNamespacedCustomObject({ group: "jobset.x-k8s.io", version: "v1alpha2", namespace: namespace(), plural: "jobsets", name })
 }
+
+export async function createJobSet(podSpec: k8s.V1PodSpec, multiReadPVC: string) {
+  if (!podSpec.initContainers) {
+    podSpec.initContainers = []
+  }
+
+  // Work around until stateful jobset is available then we can just create a clone for each of the jobset.
+  // Right now we don't have a way to use a unique PVC for each jobset.
+  // The init container will copy the content of work-clone, which is a PVC that can be read by many nodes.
+  const initContainer: k8s.V1Container = {
+    name: "copy-directory",
+    image: "busybox:1.28",
+    command: ["sh", "-c", "cp -r /work_copy/. /work; du -sh /work"],
+    volumeMounts: [
+      {
+        name: "work-clone",
+        mountPath: "/work_copy",
+        readOnly: true,
+      },
+      {
+        mountPath: "/__w",
+        name: "work",
+      },
+    ],
+  }
+
+  podSpec.initContainers.push(initContainer)
+  if (!podSpec.volumes) {
+    podSpec.volumes = []
+  }
+
+  const workVolume = podSpec.volumes.find(volume => volume.name === "work")
+  if (workVolume) {
+    workVolume.persistentVolumeClaim = undefined
+    workVolume.emptyDir = {}
+  } else {
+    podSpec.volumes.push({
+      name: "work",
+      emptyDir: {}
+    })
+  }
+
+  podSpec.volumes.push(
+    {
+      name: "work-clone",
+      persistentVolumeClaim: {
+        claimName: multiReadPVC,
+        readOnly: true,
+      },
+  })
+
+
+  return await k8sCustomApi.createNamespacedCustomObject({
+    group: "jobset.x-k8s.io",
+    version: "v1alpha2",
+    namespace: namespace(),
+    plural: "jobsets",
+    body: {
+      metadata: {
+        name: "test-job-set"
+      },
+      spec: {
+        replicatedJobs: [
+          {
+            name: "workers",
+            template: {
+              spec: podSpec
+            }
+          }
+        ]
+      }
+    }
+  })
+}
+
+/*
+const jobSpec = {
+  spec: {
+    replicatedJobs: [
+      {
+        name: "workers",
+        template: {
+          spec: {
+            parallelism: 3,
+            completions: 3,
+            backoffLimit: 0,
+            template: {
+              spec: {
+                serviceAccountName: "jax-job-sa",
+                restartPolicy: "Never",
+                imagePullSecrets: [
+                  {
+                    name: null,
+                  },
+                ],
+                volumes: [
+                  {
+                    name: "work-clone",
+                    persistentVolumeClaim: {
+                      claimName: "podpvc-clone",
+                      readOnly: true,
+                    },
+                  },
+                  {
+                    name: "work",
+                    emptyDir: {
+                      sizeLimit: "50Gi",
+                      medium: "Memory",
+                    },
+                  },
+                ],
+                initContainers: [
+                  {
+                    name: "copy-directory",
+                    image: "busybox:1.28",
+                    command: ["sh", "-c", "du -sh /work_copy; cp -r /work_copy/. /work"],
+                    volumeMounts: [
+                      {
+                        name: "work-clone",
+                        mountPath: "/work_copy",
+                        readOnly: true,
+                      },
+                      {
+                        mountPath: "/__w",
+                        name: "work",
+                      },
+                    ],
+                  },
+                ],
+                containers: [
+                  {
+                    name: "main",
+                    image: "ghcr.io/nvidia/jax:jax",
+                    imagePullPolicy: "Always",
+                    volumeMounts: [
+                      {
+                        mountPath: "/work",
+                        name: "work",
+                      },
+                    ],
+                    resources: {
+                      limits: {
+                        cpu: 1,
+                        // "nvidia.com/gpu": 1, // Uncomment if needed
+                      },
+                    },
+                    command: ["python"],
+                    args: [
+                      "-c",
+                      `import jax
+print("directory")
+import os; print(os.listdir('/work'))
+print(os.environ)
+jax.distributed.initialize()
+print(jax.devices())
+print(jax.local_devices())
+assert jax.process_count() > 1
+assert len(jax.devices()) > len(jax.local_devices())`,
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+    ],
+  },
+};
+*/

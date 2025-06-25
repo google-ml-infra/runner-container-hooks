@@ -39,12 +39,12 @@ export async function prepareJob(
   args: PrepareJobArgs,
   responseFile
 ): Promise<void> {
-  core.info("quoct getting jobset ")
+  core.debug("quoct getting jobset ")
   try {
     const jobset = await getJobSet("jaxjob")
-    core.info(JSON.stringify(jobset))
+    core.debug(JSON.stringify(jobset))
   } catch (error) {
-    core.info("quoct failed to get job set " + error)
+    core.debug("quoct failed to get job set " + error)
   }
   if (!args.container) {
     throw new Error('Job Container is required.')
