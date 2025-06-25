@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { clonePersistentVolume, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
+import { clonePersistentVolume, clonePersistentVolumeReadWriteMany, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
 import {
   fixArgs,
   PodPhase,
@@ -38,6 +38,7 @@ async function runScriptStepWithGRPC(
     core.debug("Could not find quoct pod")
     core.debug("clone persistent volume for test")
     await clonePersistentVolume("quoct-post-test-workflow")
+    await clonePersistentVolumeReadWriteMany()
     core.debug("creating pod helper")
   
     createdQuoctPod = await getPod(state.jobPod)
