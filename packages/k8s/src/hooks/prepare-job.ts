@@ -17,7 +17,8 @@ import {
   getPrepareJobTimeoutSeconds,
   clonePersistentVolume,
   createPodHelper,
-  createK8sPod
+  createK8sPod,
+  getJobSet
 } from '../k8s'
 import {
   containerVolumes,
@@ -38,6 +39,13 @@ export async function prepareJob(
   args: PrepareJobArgs,
   responseFile
 ): Promise<void> {
+  core.info("quoct getting jobset ")
+  try {
+    const jobset = await getJobSet("jaxjob")
+    core.info(JSON.stringify(jobset))
+  } catch (error) {
+    core.info("quoct failed to get job set " + error)
+  }
   if (!args.container) {
     throw new Error('Job Container is required.')
   }
