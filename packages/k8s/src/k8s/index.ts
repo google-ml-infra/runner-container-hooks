@@ -1002,6 +1002,8 @@ export async function createJobSet(podSpec: k8s.V1PodSpec, multiReadPVC: string)
     namespace: namespace(),
     plural: "jobsets",
     body: {
+      apiVersion: "jobset.x-k8s.io/v1alpha2",
+      kind: "JobSet",
       metadata: {
         name: "test-job-set"
       },
