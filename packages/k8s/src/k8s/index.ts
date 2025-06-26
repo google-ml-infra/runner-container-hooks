@@ -336,9 +336,8 @@ export async function checkIfPvcExist(romPVC: string): Promise<boolean> {
     })
     return claim.metadata?.name === romPVC
   } catch (error) {
-    core.debug('error body is ' + (error as any)?.body)
     core.debug('string error ' + JSON.stringify(error))
-    if ((error as any)?.body?.code === 404) {
+    if ((error as any)?.code === 404) {
       core.debug(`PVC claim ${romPVC} does not exist`)
       return false;
     } else {
