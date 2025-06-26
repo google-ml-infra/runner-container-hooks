@@ -32,6 +32,13 @@ export function getVolumeClaimName(): string {
   return name
 }
 
+export function getJobSetName(): string {
+  return `${getRunnerPodName().substring(
+    0,
+    MAX_POD_NAME_LENGTH - '-jobset'.length
+  )}-jobset`
+}
+
 export function getReadOnlyManyVolumeClaimName(): string {
   return `${getRunnerPodName()}-rom`
 }

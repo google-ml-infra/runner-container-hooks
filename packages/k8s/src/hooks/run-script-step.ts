@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { checkIfPvcExist, clonePVCReadOnlyManyFromExistingPVC, createJobSet, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
+import { checkIfPvcExist, clonePVCReadOnlyManyFromExistingPVC, createJobSet, createK8sPod, createPod, execPodStep, getJobSet, getPod, getPodsFromJobSet, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
 import {
   fixArgs,
   PodPhase,
@@ -13,7 +13,7 @@ import {
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
-import { getReadOnlyManyVolumeClaimName, getVolumeClaimName, GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
+import { getJobSetName, getReadOnlyManyVolumeClaimName, getVolumeClaimName, GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
@@ -40,6 +40,7 @@ async function runScriptStepWithGRPC(
   }
 
   const romPVC = getReadOnlyManyVolumeClaimName()
+  const jobSetName = getJobSetName()
   core.info('checking if pvc exists ' + romPVC)
   if (await checkIfPvcExist(romPVC)) {
     core.info("Found pvc" + romPVC)
@@ -49,7 +50,7 @@ async function runScriptStepWithGRPC(
     await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
     core.info('creating job set')
-    await createJobSet(pod!!.spec!!, romPVC)
+    await createJobSet(jobSetName, pod!!.spec!!, romPVC)
   }
 
   const rootCertClientAndKey = await getRootCertClientCertAndKey()
@@ -62,6 +63,21 @@ async function runScriptStepWithGRPC(
     status.podIP,
     GRPC_SCRIPT_EXECUTOR_PORT
   )
+
+  core.debug('Retrieving job set pods')
+  const pods = await getPodsFromJobSet(jobSetName)
+  core.debug(`Retrieved ${pods.items.length}`)
+  await Promise.all(pods.items.map(async (pod) => {
+    core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
+    return await runScriptByGrpc(
+      scriptContent,
+      rootCertClientAndKey.caCertAndkey.cert,
+      rootCertClientAndKey.clientCertAndKey.cert,
+      rootCertClientAndKey.clientCertAndKey.privateKey,
+      pod.status!!.podIP!!,
+      GRPC_SCRIPT_EXECUTOR_PORT
+    )
+  }))
 }
 
 export async function runScriptStep(

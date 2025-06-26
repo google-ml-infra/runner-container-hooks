@@ -959,7 +959,16 @@ export async function getJobSet(name) {
   return await k8sCustomApi.getNamespacedCustomObject({ group: "jobset.x-k8s.io", version: "v1alpha2", namespace: namespace(), plural: "jobsets", name })
 }
 
-export async function createJobSet(podSpec: k8s.V1PodSpec, multiReadPVC: string) {
+export async function getPodsFromJobSet(name): Promise<k8s.V1PodList> {
+  const selector = `jobset.sigs.k8s.io/jobset-name=${name}`
+
+  return await k8sApi.listNamespacedPod({
+    namespace: namespace(),
+    labelSelector: selector
+  })
+}
+
+export async function createJobSet(jobSetName: string, podSpec: k8s.V1PodSpec, multiReadPVC: string) {
   if (!podSpec.initContainers) {
     podSpec.initContainers = []
   }
@@ -1018,7 +1027,7 @@ export async function createJobSet(podSpec: k8s.V1PodSpec, multiReadPVC: string)
       apiVersion: "jobset.x-k8s.io/v1alpha2",
       kind: "JobSet",
       metadata: {
-        name: "test-job-set"
+        name: jobSetName
       },
       spec: {
         replicatedJobs: [
