@@ -336,6 +336,7 @@ export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, r
       },
       spec: {
         storageClassName: existingPV.spec.storageClassName,
+        persistentVolumeReclaimPolicy: "Delete",
         capacity: existingPV.spec.capacity,
         accessModes: ["ReadOnlyMany"],
         claimRef: {
