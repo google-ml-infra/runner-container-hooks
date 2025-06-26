@@ -39,17 +39,17 @@ async function runScriptStepWithGRPC(
     throw new Error(`Failed to get pod ${podName} IP`)
   }
 
-  core.info('checking if pvc exists')
   const romPVC = getReadOnlyManyVolumeClaimName()
-  if (!checkIfPvcExist(romPVC)) {
-    core.debug("clone persistent volume " + romPVC + " for test")
+  core.info('checking if pvc exists ' + romPVC)
+  if (await checkIfPvcExist(romPVC)) {
+    core.info("Found pvc" + romPVC)
+  } else {
+    core.info("clone persistent volume " + romPVC + " for test")
     // await clonePersistentVolume("quoct-post-test-workflow")
     await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
-    core.debug('creating job set')
+    core.info('creating job set')
     await createJobSet(pod!!.spec!!, romPVC)
-  } else {
-    core.debug("Found pvc" + romPVC)
   }
 
   const rootCertClientAndKey = await getRootCertClientCertAndKey()
