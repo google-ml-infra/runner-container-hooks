@@ -32,6 +32,10 @@ export function getVolumeClaimName(): string {
   return name
 }
 
+export function getReadOnlyManyVolumeClaimName(): string {
+  return `${getRunnerPodName()}-rom`
+}
+
 export function getSecretName(): string {
   return `${getRunnerPodName().substring(
     0,

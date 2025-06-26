@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { clonePersistentVolume, clonePersistentVolumeReadWriteMany, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
+import { checkIfPvcExist, clonePersistentVolume, clonePVCReadOnlyManyFromExistingPVC, createJobSet, createK8sPod, createPod, execPodStep, getPod, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
 import {
   fixArgs,
   PodPhase,
@@ -13,7 +13,7 @@ import {
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
-import { GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
+import { getReadOnlyManyVolumeClaimName, getVolumeClaimName, GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
@@ -28,95 +28,40 @@ async function runScriptStepWithGRPC(
     environmentVariables
   )
 
-  let createdQuoctPod;
-  try {
-   createdQuoctPod = await getPod("quoct-post-test-workflow")
-  } catch (error) {
-    core.debug("Error getting quoct pod " + error)
+  core.info('using script executor')
+  const podName = state.jobPod
+  const pod = await getPod(state.jobPod)
+  const status = pod?.status
+  if (status?.phase === 'Succeeded') {
+    throw new Error(`Failed to get pod ${podName} status`)
   }
-  if (!createdQuoctPod) {
-    core.debug("Could not find quoct pod")
-    core.debug("clone persistent volume for test")
-    await clonePersistentVolume("quoct-post-test-workflow")
-    await clonePersistentVolumeReadWriteMany()
-    core.debug("creating pod helper")
-  
-    createdQuoctPod = await getPod(state.jobPod)
-    if (!createPod) {
-      core.debug("Cannot find " + state.podName)
-      throw new Error("cannot find created pod")
-    }
-    const previousPodMetadata = createdQuoctPod!!.metadata
-    createdQuoctPod!!.metadata = {
-      name: "quoct-post-test-workflow",
-      namespace: previousPodMetadata!!.namespace,
-      annotations: previousPodMetadata!!.annotations,
-      labels: previousPodMetadata!!.labels,
-    }
+  if (status?.podIP === undefined) {
+    throw new Error(`Failed to get pod ${podName} IP`)
+  }
 
-    createdQuoctPod!!.spec!!.nodeName = ""
-    core.debug(`volume are ${JSON.stringify(createdQuoctPod!!.spec!!.volumes!!)}`)
-  
-    const volume = createdQuoctPod!!.spec!!.volumes!!.find(vol => vol.name === 'work')
-    core.debug(`volume is ${JSON.stringify(volume)}`)
-    volume!!.persistentVolumeClaim = {
-      claimName: "quoct-post-test-workflow"
-    }
-    core.debug(`volumes are now ${JSON.stringify(createdQuoctPod!!.spec!!.volumes!!)}`)
-    const newPod = await createK8sPod(createdQuoctPod!!)
-    core.debug(`Created new pod ${JSON.stringify(newPod)}`)
+  core.info('checking if pvc exists')
+  const romPVC = getReadOnlyManyVolumeClaimName()
+  if (!checkIfPvcExist(romPVC)) {
+    core.debug("clone persistent volume " + romPVC + " for test")
+    // await clonePersistentVolume("quoct-post-test-workflow")
+    await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
-    await waitForPodPhases(
-      newPod!!.metadata!!.name!!,
-      new Set([PodPhase.RUNNING]),
-      new Set([PodPhase.PENDING]),
-      getPrepareJobTimeoutSeconds()
-    )
-    core.debug(`Pod quoct-post-test-workflow is now ready`)
-
+    core.debug('creating job set')
+    await createJobSet(pod!!.spec!!, romPVC)
   } else {
-    core.debug("Found quoct pod " + JSON.stringify(createdQuoctPod))
+    core.debug("Found pvc" + romPVC)
   }
 
-  try {
-    const podName = state.jobPod
-    core.info('using script executor')
-
-    const status = await getPodStatus(podName)
-    if (status?.phase === 'Succeeded') {
-      throw new Error(`Failed to get pod ${podName} status`)
-    }
-    if (status?.podIP === undefined) {
-      throw new Error(`Failed to get pod ${podName} IP`)
-    }
-
-    const rootCertClientAndKey = await getRootCertClientCertAndKey()
-    core.debug('successfully retrieved root cert, client and key')
-    await runScriptByGrpc(
-      scriptContent,
-      rootCertClientAndKey.caCertAndkey.cert,
-      rootCertClientAndKey.clientCertAndKey.cert,
-      rootCertClientAndKey.clientCertAndKey.privateKey,
-      status.podIP,
-      GRPC_SCRIPT_EXECUTOR_PORT
-    )
-
-    core.debug(`created pod status ${JSON.stringify(createdQuoctPod.status)}`)
-    await runScriptByGrpc(
-      scriptContent,
-      rootCertClientAndKey.caCertAndkey.cert,
-      rootCertClientAndKey.clientCertAndKey.cert,
-      rootCertClientAndKey.clientCertAndKey.privateKey,
-      createdQuoctPod.status.podIP,
-      GRPC_SCRIPT_EXECUTOR_PORT
-    )
-  } catch (err) {
-    core.debug(
-      `Run script Executor through GRPC failed: ${JSON.stringify(err)}`
-    )
-    const message = (err as any)?.response?.body?.message || err
-    throw new Error(`failed to run script step: ${message}`)
-  }
+  const rootCertClientAndKey = await getRootCertClientCertAndKey()
+  core.debug('successfully retrieved root cert, client and key')
+  await runScriptByGrpc(
+    scriptContent,
+    rootCertClientAndKey.caCertAndkey.cert,
+    rootCertClientAndKey.clientCertAndKey.cert,
+    rootCertClientAndKey.clientCertAndKey.privateKey,
+    status.podIP,
+    GRPC_SCRIPT_EXECUTOR_PORT
+  )
 }
 
 export async function runScriptStep(
@@ -125,7 +70,15 @@ export async function runScriptStep(
   responseFile
 ): Promise<void> {
   if (useScriptExecutor()) {
-    return runScriptStepWithGRPC(args, state)
+    try {
+      return runScriptStepWithGRPC(args, state)    
+    } catch (err) {
+      core.debug(
+        `Run script Executor through GRPC failed: ${JSON.stringify(err)}`
+      )
+      const message = (err as any)?.response?.body?.message || err
+      throw new Error(`failed to run script step: ${message}`)
+    }
   }
 
   const { entryPoint, entryPointArgs, environmentVariables } = args

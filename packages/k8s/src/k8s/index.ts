@@ -4,6 +4,7 @@ import { ContainerInfo, Registry } from 'hooklib'
 import * as stream from 'stream'
 import {
   getJobPodName,
+  getReadOnlyManyVolumeClaimName,
   getRunnerPodName,
   getSecretName,
   getStepPodName,
@@ -326,11 +327,28 @@ export async function clonePersistentVolume(newName: string): Promise<void> {
   })
 }
 
-export async function clonePersistentVolumeReadWriteMany(): Promise<void> {
-  const claimName = getVolumeClaimName()
+export async function checkIfPvcExist(romPVC: string): Promise<boolean> {
+  core.debug(`checking for existence of ${romPVC}`)
+  try {
+    const claim = await k8sApi.readNamespacedPersistentVolumeClaim({
+      namespace: namespace(),
+      name: romPVC
+    })
+    return claim.metadata?.name === romPVC
+  } catch (error) {
+    if ((error as any)?.response?.statusCode === 404) {
+      core.debug(`PVC claim ${romPVC} does not exist`)
+      return false;
+    } else {
+      throw new Error(`Error checking PVC '${romPVC}': ${error}`);
+    }
+  }  
+}
+
+export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, romPVC: string): Promise<void> {
   const claim = await k8sApi.readNamespacedPersistentVolumeClaim({
     namespace: namespace(),
-    name: claimName
+    name: existingPVC
   })
   core.debug(`Getting volume claim name ${JSON.stringify(claim.spec)}`)
 
@@ -339,7 +357,7 @@ export async function clonePersistentVolumeReadWriteMany(): Promise<void> {
     namespace: namespace(),
     body: {
       metadata: {
-        name: `${getRunnerPodName()}-rom`,
+        name: romPVC,
         namespace: namespace()
       },
       spec: {
