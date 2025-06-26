@@ -970,7 +970,7 @@ export async function createJobSet(podSpec: k8s.V1PodSpec, multiReadPVC: string)
     ],
   }
 
-  podSpec.initContainers.push(initContainer)
+  podSpec.initContainers.unshift(initContainer)
   if (!podSpec.volumes) {
     podSpec.volumes = []
   }
