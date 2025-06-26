@@ -1012,7 +1012,14 @@ export async function createJobSet(podSpec: k8s.V1PodSpec, multiReadPVC: string)
           {
             name: "workers",
             template: {
-              spec: podSpec
+              spec: {
+                parallelism: 3,
+                completions: 3,
+                backoffLimit: 0,
+                template: {
+                  spec: podSpec
+                }
+              }
             }
           }
         ]
