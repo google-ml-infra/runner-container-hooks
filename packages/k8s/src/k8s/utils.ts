@@ -15,7 +15,7 @@ import { script_executor } from './script_executor'
 export const DEFAULT_CONTAINER_ENTRY_POINT_ARGS = [`-f`, `/dev/null`]
 export const DEFAULT_CONTAINER_ENTRY_POINT = 'tail'
 
-export const SCRIPT_EXECUTOR_ENTRY_POINT = '/__e/node20/bin/node'
+export const SCRIPT_EXECUTOR_ENTRY_POINT = '/__w/externals/node20/bin/node'
 export const SCRIPT_EXECUTOR_ENTRY_POINT_ARGS = [
   '/script_executor/dist/index.js'
 ]

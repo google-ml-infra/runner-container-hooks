@@ -956,7 +956,7 @@ export async function createJobSet(podSpec: k8s.V1PodSpec, multiReadPVC: string)
   const initContainer: k8s.V1Container = {
     name: "copy-directory",
     image: "busybox:1.28",
-    command: ["sh", "-c", "cp -r /work_copy/. /work; du -sh /work"],
+    command: ["sh", "-c", "cp -r /work_copy/. /work;"],
     volumeMounts: [
       {
         name: "work-clone",
@@ -994,7 +994,6 @@ export async function createJobSet(podSpec: k8s.V1PodSpec, multiReadPVC: string)
         readOnly: true,
       },
   })
-
 
   return await k8sCustomApi.createNamespacedCustomObject({
     group: "jobset.x-k8s.io",
