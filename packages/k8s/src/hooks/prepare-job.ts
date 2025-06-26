@@ -15,7 +15,6 @@ import {
   prunePods,
   waitForPodPhases,
   getPrepareJobTimeoutSeconds,
-  clonePersistentVolume,
   createPodHelper,
   createK8sPod,
   getJobSet

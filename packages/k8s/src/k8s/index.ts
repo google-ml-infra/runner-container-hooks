@@ -294,39 +294,6 @@ export async function deletePod(podName: string): Promise<void> {
   })
 }
 
-export async function clonePersistentVolume(newName: string): Promise<void> {
-  const claimName = getVolumeClaimName()
-  const claim = await k8sApi.readNamespacedPersistentVolumeClaim({
-    namespace: namespace(),
-    name: claimName
-  })
-  core.debug(`Getting volume claim name ${JSON.stringify(claim.spec)}`)
-
-  core.debug(`Creating volume claim`)
-  await k8sApi.createNamespacedPersistentVolumeClaim({
-    namespace: namespace(),
-    body: {
-      metadata: {
-        name: newName,
-        namespace: namespace()
-      },
-      spec: {
-        storageClassName: claim.spec?.storageClassName,
-        dataSource: {
-          name: claim.metadata!!.name!!,
-          kind: "PersistentVolumeClaim"
-        },
-        accessModes: ["ReadWriteOnce"],
-        resources: {
-          requests: {
-            storage: claim.spec?.resources?.requests?.storage || "500Gi"
-          }
-        }
-      }
-    }
-  })
-}
-
 export async function checkIfPvcExist(romPVC: string): Promise<boolean> {
   core.debug(`checking for existence of ${romPVC}`)
   try {
@@ -351,8 +318,58 @@ export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, r
     namespace: namespace(),
     name: existingPVC
   })
-  core.debug(`Getting volume claim name ${JSON.stringify(claim.spec)}`)
+  core.debug(`Creating readonly many PV from PV ${JSON.stringify(claim.spec?.volumeName)}`)
+  if (!claim.spec?.volumeName) {
+    throw new Error('Cannot get volume name from spec')
+  }
+  const existingPV = await k8sApi.readPersistentVolume({name: claim.spec?.volumeName!!})
+  if (!existingPV.spec?.csi?.volumeHandle) {
+    throw new Error('Only support for CSI driver at the moment')
+  }
 
+  const newPVName = `pv-${uuidv4().substring(0, 20)}`
+  core.debug(`Creating pv ${newPVName}`)
+  const pv = await k8sApi.createPersistentVolume({
+    body: {
+      metadata: {
+        name: newPVName
+      },
+      spec: {
+        storageClassName: existingPV.spec.storageClassName,
+        capacity: existingPV.spec.capacity,
+        accessModes: ["ReadOnlyMany"],
+        claimRef: {
+          namespace: namespace(),
+          name: romPVC
+        },
+        csi: {
+          driver: existingPV.spec.csi.driver,
+          volumeHandle: existingPV.spec.csi.volumeHandle,
+          fsType: existingPV.spec.csi.fsType,
+          readOnly: true
+        }
+      }
+    }
+  })
+  core.debug(`created pv ${JSON.stringify(pv)}`)
+
+
+/**
+ * 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: PVC_NAMESPACE
+  name: PVC_NAME
+spec:
+  storageClassName: "STORAGE_CLASS_NAME"
+  volumeName: PV_NAME
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: DISK_SIZE
+* */
   core.debug(`Creating volume claim`)
   await k8sApi.createNamespacedPersistentVolumeClaim({
     namespace: namespace(),
@@ -363,10 +380,7 @@ export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, r
       },
       spec: {
         storageClassName: claim.spec?.storageClassName,
-        dataSource: {
-          name: claim.metadata!!.name!!,
-          kind: "PersistentVolumeClaim"
-        },
+        volumeName: newPVName,
         accessModes: ["ReadOnlyMany"],
         resources: {
           requests: {
@@ -956,7 +970,7 @@ export async function createJobSet(podSpec: k8s.V1PodSpec, multiReadPVC: string)
   const initContainer: k8s.V1Container = {
     name: "copy-directory",
     image: "busybox:1.28",
-    command: ["sh", "-c", "cp -r /work_copy/. /work;"],
+    command: ["sh", "-c", "cp -r /work_copy/. /__w; ls /__w"],
     volumeMounts: [
       {
         name: "work-clone",
