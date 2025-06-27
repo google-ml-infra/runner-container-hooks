@@ -27,6 +27,7 @@ async function runScriptStepWithGRPC(
     args.prependPath,
     environmentVariables
   )
+  core.info("script content is " + scriptContent)
 
   core.info('using script executor')
   const podName = state.jobPod
@@ -53,8 +54,9 @@ async function runScriptStepWithGRPC(
     await createJobSet(jobSetName, pod!!.spec!!, romPVC)
 
     core.info('waiting for jobset pod to come online')
-    core.info('sleep for 60s')
-    await sleep(60000)
+    // TODO(quoct): Make a wait for up to 60 seconds here with a loop?
+    core.info('sleep for 5 seconds to wait for pods creation')
+    await sleep(5000)
     const pods = await getPodsFromJobSet(jobSetName)
     core.info(`pods items are ${pods.items}`)
 
@@ -67,7 +69,7 @@ async function runScriptStepWithGRPC(
           new Set([PodPhase.PENDING]),
           getPrepareJobTimeoutSeconds()
         )
-        core.info(`pod phas is now ${await getPodPhase(pod.metadata!!.name!!)}`)
+        core.info(`pod phase is now ${await getPodPhase(pod.metadata!!.name!!)}`)
       } catch (err) {
         throw new Error(`pod from job set failed to come online with error: ${err}`)
       }
@@ -91,19 +93,22 @@ async function runScriptStepWithGRPC(
   core.debug('Retrieving job set pods')
   const pods = await getPodsFromJobSet(jobSetName)
   core.debug(`Retrieved ${pods.items.length}`)
-  await Promise.all(pods.items.map(async (pod) => {
-    core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
-    core.debug(`pod spec ${JSON.stringify(pod.spec)}`)
-    core.debug(`pod status ${JSON.stringify(pod.status)}`)
-    return await runScriptByGrpc(
-      scriptContent,
-      rootCertClientAndKey.caCertAndkey.cert,
-      rootCertClientAndKey.clientCertAndKey.cert,
-      rootCertClientAndKey.clientCertAndKey.privateKey,
-      pod.status!!.podIP!!,
-      GRPC_SCRIPT_EXECUTOR_PORT
-    )
-  }))
+  try {
+    await Promise.all(pods.items.map(async (pod) => {
+      core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
+      return await runScriptByGrpc(
+        scriptContent,
+        rootCertClientAndKey.caCertAndkey.cert,
+        rootCertClientAndKey.clientCertAndKey.cert,
+        rootCertClientAndKey.clientCertAndKey.privateKey,
+        pod.status!!.podIP!!,
+        GRPC_SCRIPT_EXECUTOR_PORT
+      )
+    }))  
+  } catch (error) {
+    core.info("error execing waiting for debug " + error)
+    await sleep(600000)
+  }
 }
 
 export async function runScriptStep(
