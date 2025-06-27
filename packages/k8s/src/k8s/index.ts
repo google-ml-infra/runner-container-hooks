@@ -583,7 +583,7 @@ export function getPrepareJobTimeoutSeconds(): number {
   return timeoutSeconds
 }
 
-async function getPodPhase(podName: string): Promise<PodPhase> {
+export async function getPodPhase(podName: string): Promise<PodPhase> {
   const podPhaseLookup = new Set<string>([
     PodPhase.PENDING,
     PodPhase.RUNNING,

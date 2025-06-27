@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { checkIfPvcExist, clonePVCReadOnlyManyFromExistingPVC, createJobSet, createK8sPod, createPod, execPodStep, getJobSet, getPod, getPodsFromJobSet, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
+import { checkIfPvcExist, clonePVCReadOnlyManyFromExistingPVC, createJobSet, createK8sPod, createPod, execPodStep, getJobSet, getPod, getPodPhase, getPodsFromJobSet, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
 import {
   fixArgs,
   PodPhase,
@@ -54,15 +54,18 @@ async function runScriptStepWithGRPC(
 
     core.info('waiting for jobset pod to come online')
     const pods = await getPodsFromJobSet(jobSetName)
+    core.info(`pods items are ${pods.items}`)
 
     await Promise.all((pods.items.map(async (pod) => {
       try {
+        core.info(`waiting for pod ${pod.metadata?.name} to come online`)
         await waitForPodPhases(
           pod.metadata!!.name!!,
           new Set([PodPhase.RUNNING]),
           new Set([PodPhase.PENDING]),
           getPrepareJobTimeoutSeconds()
         )
+        core.info(`pod phas is now ${await getPodPhase(pod.metadata!!.name!!)}`)
       } catch (err) {
         throw new Error(`pod from job set failed to come online with error: ${err}`)
       }
