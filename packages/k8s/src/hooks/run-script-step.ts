@@ -69,6 +69,8 @@ async function runScriptStepWithGRPC(
   core.debug(`Retrieved ${pods.items.length}`)
   await Promise.all(pods.items.map(async (pod) => {
     core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
+    core.debug(`pod spec ${pod.spec}`)
+    core.debug(`pod status ${pod.status}`)
     return await runScriptByGrpc(
       scriptContent,
       rootCertClientAndKey.caCertAndkey.cert,
