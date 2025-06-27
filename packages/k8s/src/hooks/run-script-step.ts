@@ -53,6 +53,8 @@ async function runScriptStepWithGRPC(
     await createJobSet(jobSetName, pod!!.spec!!, romPVC)
 
     core.info('waiting for jobset pod to come online')
+    core.info('sleep for 60s')
+    await sleep(60000)
     const pods = await getPodsFromJobSet(jobSetName)
     core.info(`pods items are ${pods.items}`)
 
