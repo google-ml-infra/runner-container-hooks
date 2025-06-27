@@ -49,7 +49,7 @@ async function runScriptStepWithGRPC(
     // await clonePersistentVolume("quoct-post-test-workflow")
     await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
-    core.info('creating job set')
+    core.info('creating job set ' + jobSetName)
     await createJobSet(jobSetName, pod!!.spec!!, romPVC)
   }
 

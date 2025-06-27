@@ -32,8 +32,9 @@ export function getVolumeClaimName(): string {
   return name
 }
 
+// The end characters are better for uniqueness
 export function getJobSetName(): string {
-  return `${uuidv4().substring(0, 20)}-jobset`
+  return `jobset-${getRunnerPodName().slice(-30)}`
 }
 
 export function getReadOnlyManyVolumeClaimName(): string {
