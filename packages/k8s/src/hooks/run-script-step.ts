@@ -51,9 +51,27 @@ async function runScriptStepWithGRPC(
 
     core.info('creating job set ' + jobSetName)
     await createJobSet(jobSetName, pod!!.spec!!, romPVC)
+
+    core.info('waiting for jobset pod to come online')
+    const pods = await getPodsFromJobSet(jobSetName)
+
+    await Promise.all((pods.items.map(async (pod) => {
+      try {
+        await waitForPodPhases(
+          pod.metadata!!.name!!,
+          new Set([PodPhase.RUNNING]),
+          new Set([PodPhase.PENDING]),
+          getPrepareJobTimeoutSeconds()
+        )
+      } catch (err) {
+        throw new Error(`pod from job set failed to come online with error: ${err}`)
+      }
+    })))
+    core.info('pods from jobset are now online')
   }
 
   const rootCertClientAndKey = await getRootCertClientCertAndKey()
+  /*
   core.debug('successfully retrieved root cert, client and key')
   await runScriptByGrpc(
     scriptContent,
@@ -63,6 +81,7 @@ async function runScriptStepWithGRPC(
     status.podIP,
     GRPC_SCRIPT_EXECUTOR_PORT
   )
+  */
 
   core.debug('Retrieving job set pods')
   const pods = await getPodsFromJobSet(jobSetName)
