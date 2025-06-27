@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { checkIfPvcExist, clonePVCReadOnlyManyFromExistingPVC, createJobSet, createK8sPod, createPod, execPodStep, getJobSet, getPod, getPodPhase, getPodsFromJobSet, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
+import { checkIfPvcExist, clonePVCReadOnlyManyFromExistingPVC, cpToPod, createJobSet, createK8sPod, createPod, execPodStep, getJobSet, getPod, getPodPhase, getPodsFromJobSet, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
 import {
   fixArgs,
   PodPhase,
@@ -95,15 +95,31 @@ async function runScriptStepWithGRPC(
   core.debug(`Retrieved ${pods.items.length}`)
   try {
     await Promise.all(pods.items.map(async (pod) => {
-      core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
-      return await runScriptByGrpc(
-        scriptContent,
-        rootCertClientAndKey.caCertAndkey.cert,
-        rootCertClientAndKey.clientCertAndKey.cert,
-        rootCertClientAndKey.clientCertAndKey.privateKey,
-        pod.status!!.podIP!!,
-        GRPC_SCRIPT_EXECUTOR_PORT
-      )
+      try {
+        core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
+        core.info('deleting _temp folder')
+        await runScriptByGrpc(
+          "rm -rf /__w/_temp",
+          rootCertClientAndKey.caCertAndkey.cert,
+          rootCertClientAndKey.clientCertAndKey.cert,
+          rootCertClientAndKey.clientCertAndKey.privateKey,
+          pod.status!!.podIP!!,
+          GRPC_SCRIPT_EXECUTOR_PORT
+        )
+        core.info('copying temp folder')
+        cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "~/_work/_temp", "/__w")
+        core.info('done copying temp folder')
+        return await runScriptByGrpc(
+          scriptContent,
+          rootCertClientAndKey.caCertAndkey.cert,
+          rootCertClientAndKey.clientCertAndKey.cert,
+          rootCertClientAndKey.clientCertAndKey.privateKey,
+          pod.status!!.podIP!!,
+          GRPC_SCRIPT_EXECUTOR_PORT
+        )  
+      } catch(error) {
+        core.info(`error while execing the pod in the jobset ${error}`)
+      }
     }))  
   } catch (error) {
     core.info("error execing waiting for debug " + error)

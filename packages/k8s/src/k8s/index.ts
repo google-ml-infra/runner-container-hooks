@@ -31,6 +31,7 @@ const k8sApi = kc.makeApiClient(k8s.CoreV1Api)
 const k8sBatchV1Api = kc.makeApiClient(k8s.BatchV1Api)
 const k8sAuthorizationV1Api = kc.makeApiClient(k8s.AuthorizationV1Api)
 const k8sCustomApi = kc.makeApiClient(k8s.CustomObjectsApi);
+const k8sCopy = new k8s.Cp(kc)
 
 const DEFAULT_WAIT_FOR_POD_TIME_SECONDS = 10 * 60 // 10 min
 
@@ -958,6 +959,10 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
 
 export async function getJobSet(name) {
   return await k8sCustomApi.getNamespacedCustomObject({ group: "jobset.x-k8s.io", version: "v1alpha2", namespace: namespace(), plural: "jobsets", name })
+}
+
+export async function cpToPod(podName: string, containerName: string, srcPath: string, targetPath: string): Promise<void> {
+  return await k8sCopy.cpToPod(namespace(), podName, containerName, srcPath, targetPath)
 }
 
 export async function getPodsFromJobSet(name): Promise<k8s.V1PodList> {
