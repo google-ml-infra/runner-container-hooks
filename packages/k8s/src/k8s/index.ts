@@ -11,6 +11,7 @@ import {
   getSecretName,
   getStepPodName,
   getVolumeClaimName,
+  JOB_CONTAINER_NAME,
   RunnerInstanceLabel
 } from '../hooks/constants'
 import {
@@ -1044,6 +1045,14 @@ export async function createJobSet(jobSetName: string, podSpec: k8s.V1PodSpec, m
         readOnly: true,
       },
   })
+
+  const jobContainer = podSpec.containers.find(container => container.name === JOB_CONTAINER_NAME)
+  core.info('found job container')
+  if (jobContainer?.volumeMounts) {
+    core.info('replacing volume mount ' + JSON.stringify(jobContainer.volumeMounts))
+    jobContainer.volumeMounts = jobContainer.volumeMounts.filter(volumeMount => !volumeMount.mountPath.startsWith("/github/"))
+    core.info('replaced volume mount ' + JSON.stringify(jobContainer.volumeMounts))
+  }
 
   return await k8sCustomApi.createNamespacedCustomObject({
     group: "jobset.x-k8s.io",

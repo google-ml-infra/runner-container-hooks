@@ -100,7 +100,7 @@ async function runScriptStepWithGRPC(
         core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
         core.info('deleting _temp folder')
         await runScriptByGrpc(
-          "rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*",
+          "rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow",
           rootCertClientAndKey.caCertAndkey.cert,
           rootCertClientAndKey.clientCertAndKey.cert,
           rootCertClientAndKey.clientCertAndKey.privateKey,
@@ -119,7 +119,7 @@ async function runScriptStepWithGRPC(
         await sleep(600000)
         core.info('copying github_home and github_workflow folder')
         await runScriptByGrpc(
-          "cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow",
+          "cp -r /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow",
           rootCertClientAndKey.caCertAndkey.cert,
           rootCertClientAndKey.clientCertAndKey.cert,
           rootCertClientAndKey.clientCertAndKey.privateKey,
