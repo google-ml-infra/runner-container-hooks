@@ -113,7 +113,7 @@ async function runScriptStepWithGRPC(
           GRPC_SCRIPT_EXECUTOR_PORT
         )
         core.info('copying temp folder')
-        cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "~/_work/_temp", "/__w")
+        cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp", "/__w")
         core.info('done copying temp folder')
         return await runScriptByGrpc(
           scriptContent,
