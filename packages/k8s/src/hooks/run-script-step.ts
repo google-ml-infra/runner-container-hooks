@@ -116,6 +116,7 @@ async function runScriptStepWithGRPC(
       
         core.info('copying temp folder')
         await cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp", "/__w/_temp")
+        await sleep(600000)
         core.info('copying github_home and github_workflow folder')
         await runScriptByGrpc(
           "cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow",
