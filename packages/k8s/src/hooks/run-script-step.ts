@@ -105,7 +105,7 @@ async function runScriptStepWithGRPC(
         core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
         core.info('deleting _temp folder')
         await runScriptByGrpc(
-          "rm -rf /__w/_temp",
+          "rm -rf /__w/_temp/*",
           rootCertClientAndKey.caCertAndkey.cert,
           rootCertClientAndKey.clientCertAndKey.cert,
           rootCertClientAndKey.clientCertAndKey.privateKey,
@@ -113,7 +113,7 @@ async function runScriptStepWithGRPC(
           GRPC_SCRIPT_EXECUTOR_PORT
         )
         core.info('copying temp folder')
-        cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp", "/__w")
+        cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp", "/__w/_temp")
         core.info('done copying temp folder')
         return await runScriptByGrpc(
           scriptContent,
