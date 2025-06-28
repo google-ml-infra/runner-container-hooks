@@ -27,11 +27,6 @@ async function runScriptStepWithGRPC(
     args.prependPath,
     environmentVariables
   )
-  core.info('read dir files')
-  const files = fs.readdirSync('/home/runner/_work/_temp/');
-  core.info('Files in current directory (synchronous):' + files);
-  const more_files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
-  core.info('Files in current directory (synchronous):' + more_files);
 
   core.info("script content is " + scriptContent)
 
@@ -112,13 +107,24 @@ async function runScriptStepWithGRPC(
           pod.status!!.podIP!!,
           GRPC_SCRIPT_EXECUTOR_PORT
         )
+
+        core.info('read dir files')
+        const files = fs.readdirSync('/home/runner/_work/_temp/');
+        core.info('Files in current directory (synchronous):' + files);
+        const more_files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
+        core.info('Files in current directory (synchronous):' + more_files);
+      
         core.info('copying temp folder')
         await cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp", "/__w/_temp")
-        core.info('copying github_home folder')
-        await cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp/_github_home", "/github/home")
-        core.info('copying github_workflow folder')
-        await cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp/_github_workflow", "/github/workflow")
-        core.info("done copying")
+        core.info('copying github_home and github_workflow folder')
+        await runScriptByGrpc(
+          "cp -r /__w/_temp/_github_home/* /github/home/; cp -r /__w/_temp/_github_workflow/* /github/workflow",
+          rootCertClientAndKey.caCertAndkey.cert,
+          rootCertClientAndKey.clientCertAndKey.cert,
+          rootCertClientAndKey.clientCertAndKey.privateKey,
+          pod.status!!.podIP!!,
+          GRPC_SCRIPT_EXECUTOR_PORT
+        )
 
         return await runScriptByGrpc(
           scriptContent,
