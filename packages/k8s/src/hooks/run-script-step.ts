@@ -125,7 +125,7 @@ async function runScriptStepWithGRPC(
         )  
       } catch(error) {
         core.info(`error while execing the pod in the jobset ${error}`)
-        sleep(600000)
+        await sleep(600000)
       }
     }))  
   } catch (error) {
