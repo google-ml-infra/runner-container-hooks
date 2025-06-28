@@ -344,7 +344,8 @@ export async function runScriptByGrpc(
   clientCert: string,
   clientKey: string,
   ip: string,
-  grpc_port = 50051
+  grpc_port = 50051,
+  streamOutputAndError = false,
 ): Promise<void> {
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
@@ -374,10 +375,10 @@ export async function runScriptByGrpc(
       if (response.has_code) {
         exitCode = response.code
       }
-      if (response.has_output) {
+      if (response.has_output && streamOutputAndError) {
         process.stdout.write(response.output)
       }
-      if (response.has_error) {
+      if (response.has_error && streamOutputAndError) {
         process.stderr.write(response.error)
       }
     })
@@ -385,7 +386,9 @@ export async function runScriptByGrpc(
     call.on('end', async () => {
       // Half a second wait in case the data event with the exit code did not get triggered yet.
       await sleep(500)
-      process.stdout.write(`Job exit code is ${exitCode}.`)
+      if (streamOutputAndError) {
+        process.stdout.write(`Job exit code is ${exitCode}.`)
+      }
       if (exitCode === 0) {
         resolve()
       } else {
@@ -395,7 +398,9 @@ export async function runScriptByGrpc(
 
     call.on('error', (err: any) => {
       const errorMessage = `Error execing ${command}: ${err}`
-      process.stdout.write(errorMessage)
+      if (streamOutputAndError) {
+        process.stdout.write(errorMessage)
+      }
       reject(new Error(errorMessage))
     })
   })
