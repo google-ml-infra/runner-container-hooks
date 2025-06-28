@@ -2,6 +2,8 @@ import * as core from '@actions/core'
 import * as k8s from '@kubernetes/client-node'
 import { ContainerInfo, Registry } from 'hooklib'
 import * as stream from 'stream'
+import * as tar from 'tar-fs'
+import { WritableStreamBuffer } from 'stream-buffers';
 import {
   getJobPodName,
   getReadOnlyManyVolumeClaimName,
@@ -31,7 +33,7 @@ const k8sApi = kc.makeApiClient(k8s.CoreV1Api)
 const k8sBatchV1Api = kc.makeApiClient(k8s.BatchV1Api)
 const k8sAuthorizationV1Api = kc.makeApiClient(k8s.AuthorizationV1Api)
 const k8sCustomApi = kc.makeApiClient(k8s.CustomObjectsApi);
-const k8sCopy = new k8s.Cp(kc)
+const k8sExec = new k8s.Exec(kc)
 
 const DEFAULT_WAIT_FOR_POD_TIME_SECONDS = 10 * 60 // 10 min
 
@@ -961,8 +963,27 @@ export async function getJobSet(name) {
   return await k8sCustomApi.getNamespacedCustomObject({ group: "jobset.x-k8s.io", version: "v1alpha2", namespace: namespace(), plural: "jobsets", name })
 }
 
-export async function cpToPod(podName: string, containerName: string, srcPath: string, targetPath: string): Promise<void> {
-  return await k8sCopy.cpToPod(namespace(), podName, containerName, srcPath, targetPath)
+export async function cpToPod(podName: string, containerName: string, srcPath: string, tgtPath: string): Promise<void> {
+  const command = ['tar', 'xf', '-', '-C', tgtPath];
+  const readStream = tar.pack(srcPath);
+  const errStream = new WritableStreamBuffer();
+  await new Promise<void>((resolve, reject) => k8sExec.exec(
+      namespace(),
+      podName,
+      containerName,
+      command,
+      null,
+      errStream,
+      readStream,
+      false,
+      async () => {
+          if (errStream.size()) {
+            reject(`Error from cpToPod - details: \n ${errStream.getContentsAsString()}`);
+          } else {
+            resolve()
+          }
+      },
+  ));
 }
 
 export async function getPodsFromJobSet(name): Promise<k8s.V1PodList> {
