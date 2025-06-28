@@ -28,9 +28,9 @@ async function runScriptStepWithGRPC(
     environmentVariables
   )
   core.info('read dir files')
-  const files = fs.readdirSync('/home/runner/_work');
+  const files = fs.readdirSync('/home/runner/_work/_temp/');
   core.info('Files in current directory (synchronous):' + files);
-  const more_files = fs.readdirSync('/home/runner/_work/_temp');
+  const more_files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
   core.info('Files in current directory (synchronous):' + more_files);
 
   core.info("script content is " + scriptContent)
