@@ -965,10 +965,12 @@ export async function getJobSet(name) {
 }
 
 export async function cpToPod(podName: string, containerName: string, srcPath: string, tgtPath: string): Promise<void> {
+  core.info('start packing to pod');
   const command = ['tar', 'xf', '-', '-C', tgtPath];
   const readStream = tar.pack(srcPath);
   const errStream = new WritableStreamBuffer();
   try {
+    core.info('start copying pod name')
     await new Promise<void>((resolve, reject) => {
       try {
         k8sExec.exec(
@@ -992,7 +994,8 @@ export async function cpToPod(podName: string, containerName: string, srcPath: s
       } catch (error) {
         core.info(`error cp to pod 1 ` + JSON.stringify(error))
       }
-    });  
+    });
+    core.info('done copying')
   } catch (error) {
     core.info(`error cp to pod 2 ` + JSON.stringify(error))
   }
