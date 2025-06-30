@@ -968,29 +968,34 @@ export async function cpToPod(podName: string, containerName: string, srcPath: s
   const command = ['tar', 'xf', '-', '-C', tgtPath];
   const readStream = tar.pack(srcPath);
   const errStream = new WritableStreamBuffer();
-  await new Promise<void>((resolve, reject) => {
-    try {
-      k8sExec.exec(
-        namespace(),
-        podName,
-        containerName,
-        command,
-        null,
-        errStream,
-        readStream,
-        false,
-        async () => {
-          if (errStream.size()) {
-            reject(`Error from cpToPod - details: \n ${errStream.getContentsAsString()}`);
-          } else {
-            resolve()
-          }
-        },
-      )
-    } catch (error) {
-      core.info(`error cp to pod ` + JSON.stringify(error))
-    }
-  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      try {
+        k8sExec.exec(
+          namespace(),
+          podName,
+          containerName,
+          command,
+          null,
+          errStream,
+          readStream,
+          false,
+          async () => {
+            if (errStream.size()) {
+              core.info("error copying to pod 0 ")
+              reject(`Error from cpToPod - details: \n ${errStream.getContentsAsString()}`);
+            } else {
+              resolve()
+            }
+          },
+        )
+      } catch (error) {
+        core.info(`error cp to pod 1 ` + JSON.stringify(error))
+      }
+    });  
+  } catch (error) {
+    core.info(`error cp to pod 2 ` + JSON.stringify(error))
+  }
 }
 
 export async function getPodsFromJobSet(name): Promise<k8s.V1PodList> {
