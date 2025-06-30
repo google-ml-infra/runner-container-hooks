@@ -314,7 +314,7 @@ export async function checkIfPvcExist(romPVC: string): Promise<boolean> {
     } else {
       throw new Error(`Error checking PVC '${romPVC}': ${error}`);
     }
-  }  
+  }
 }
 
 export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, romPVC: string): Promise<void> {
@@ -326,7 +326,7 @@ export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, r
   if (!claim.spec?.volumeName) {
     throw new Error('Cannot get volume name from spec')
   }
-  const existingPV = await k8sApi.readPersistentVolume({name: claim.spec?.volumeName!!})
+  const existingPV = await k8sApi.readPersistentVolume({ name: claim.spec?.volumeName!! })
   if (!existingPV.spec?.csi?.volumeHandle) {
     throw new Error('Only support for CSI driver at the moment')
   }
@@ -359,22 +359,22 @@ export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, r
   core.debug(`created pv ${JSON.stringify(pv)}`)
 
 
-/**
- * 
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  namespace: PVC_NAMESPACE
-  name: PVC_NAME
-spec:
-  storageClassName: "STORAGE_CLASS_NAME"
-  volumeName: PV_NAME
-  accessModes:
-    - ReadOnlyMany
-  resources:
-    requests:
-      storage: DISK_SIZE
-* */
+  /**
+   * 
+  apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    namespace: PVC_NAMESPACE
+    name: PVC_NAME
+  spec:
+    storageClassName: "STORAGE_CLASS_NAME"
+    volumeName: PV_NAME
+    accessModes:
+      - ReadOnlyMany
+    resources:
+      requests:
+        storage: DISK_SIZE
+  * */
   core.debug(`Creating volume claim`)
   await k8sApi.createNamespacedPersistentVolumeClaim({
     namespace: namespace(),
@@ -968,23 +968,29 @@ export async function cpToPod(podName: string, containerName: string, srcPath: s
   const command = ['tar', 'xf', '-', '-C', tgtPath];
   const readStream = tar.pack(srcPath);
   const errStream = new WritableStreamBuffer();
-  await new Promise<void>((resolve, reject) => k8sExec.exec(
-      namespace(),
-      podName,
-      containerName,
-      command,
-      null,
-      errStream,
-      readStream,
-      false,
-      async () => {
+  await new Promise<void>((resolve, reject) => {
+    try {
+      k8sExec.exec(
+        namespace(),
+        podName,
+        containerName,
+        command,
+        null,
+        errStream,
+        readStream,
+        false,
+        async () => {
           if (errStream.size()) {
             reject(`Error from cpToPod - details: \n ${errStream.getContentsAsString()}`);
           } else {
             resolve()
           }
-      },
-  ));
+        },
+      )
+    } catch (error) {
+      core.info(`error cp to pod ` + JSON.stringify(error))
+    }
+  });
 }
 
 export async function getPodsFromJobSet(name): Promise<k8s.V1PodList> {
@@ -1044,7 +1050,7 @@ export async function createJobSet(jobSetName: string, podSpec: k8s.V1PodSpec, m
         claimName: multiReadPVC,
         readOnly: true,
       },
-  })
+    })
 
   const jobContainer = podSpec.containers.find(container => container.name === JOB_CONTAINER_NAME)
   core.info('found job container')
