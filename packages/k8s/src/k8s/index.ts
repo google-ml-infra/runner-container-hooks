@@ -971,9 +971,9 @@ export async function cpToPod(podName: string, containerName: string, srcPath: s
   const errStream = new WritableStreamBuffer();
   try {
     core.debug('start copying pod name')
-    await new Promise<void>((resolve, reject) => {
+    await new Promise<void>(async (resolve, reject) => {
       try {
-        k8sExec.exec(
+        await k8sExec.exec(
           namespace(),
           podName,
           containerName,
