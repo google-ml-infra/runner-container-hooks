@@ -984,7 +984,7 @@ export async function cpToPod(podName: string, containerName: string, srcPath: s
           false,
           async () => {
             if (errStream.size()) {
-              core.info("error copying to pod 0 ")
+              core.debug("error copying to pod 0 ")
               reject(`Error from cpToPod - details: \n ${errStream.getContentsAsString()}`);
             } else {
               resolve()
@@ -992,12 +992,12 @@ export async function cpToPod(podName: string, containerName: string, srcPath: s
           },
         )
       } catch (error) {
-        core.info(`error cp to pod 1 ` + JSON.stringify(error))
+        core.debug(`error cp to pod 1 ` + JSON.stringify(error))
       }
     });
-    core.info('done copying')
+    core.debug('done copying')
   } catch (error) {
-    core.info(`error cp to pod 2 ` + JSON.stringify(error))
+    core.debug(`error cp to pod 2 ` + JSON.stringify(error))
   }
 }
 
