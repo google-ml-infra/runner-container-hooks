@@ -2,7 +2,7 @@ import * as grpc from '@grpc/grpc-js'
 import * as tmp from 'tmp'
 import { chmodSync, readFileSync, writeFileSync } from 'fs'
 // Use spawn instead of exec for long running process.
-import { spawn } from 'child_process'
+import { ChildProcess, spawn } from 'child_process'
 import { script_executor } from './script_executor'
 
 const keepaliveOptions = {
@@ -38,11 +38,29 @@ class ScriptExecutorService extends script_executor.UnimplementedScriptExecutorS
       writeFileSync(tmpFile.name, call.request.script)
       chmodSync(tmpFile.name, '755')
     } catch (error) {
-      console.log(`error writing script content to file ${error}`)
+      console.log(
+        `ScriptExecutorError: writing script content to file ${error}`
+      )
       call.end()
+      return
     }
 
-    const process = spawn(`sh -e ${tmpFile.name}`)
+    let process: ChildProcess | undefined
+    try {
+      process = spawn('sh', ['-e', tmpFile.name])
+    } catch (error) {
+      console.log(`ScriptExecutorError: spawining child process ${error}`)
+      call.end()
+      return
+    }
+
+    if (!process) {
+      console.log(
+        `ScriptExecutorError: failed to spawn process for script ${call.request.script}`
+      )
+      call.end()
+      return
+    }
 
     process.stdout?.on('data', data => {
       console.log(`stdout: ${data}`)
