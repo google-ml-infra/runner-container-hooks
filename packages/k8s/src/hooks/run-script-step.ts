@@ -113,7 +113,7 @@ async function runScriptStepWithGRPC(
         const more_files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
         core.info('Files in current directory (synchronous):' + more_files); 
        
-        core.debug('copying temp folder')
+        core.debug(`copying temp folder for ${pod.metadata!!.name!!} in ${JOB_CONTAINER_NAME} container`)
         await cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp", "/__w/")
         core.debug('copying github_home and github_workflow folder')
         await runScriptByGrpc(
