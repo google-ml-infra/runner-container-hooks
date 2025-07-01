@@ -1,7 +1,8 @@
 import * as grpc from '@grpc/grpc-js'
 import * as tmp from 'tmp'
-import { chmodSync, fchmodSync, readFileSync, writeFileSync } from 'fs'
-import { exec } from 'child_process'
+import { chmodSync, readFileSync, writeFileSync } from 'fs'
+// Use spawn instead of exec for long running process.
+import { spawn } from 'child_process'
 import { script_executor } from './script_executor'
 
 const keepaliveOptions = {
@@ -41,7 +42,7 @@ class ScriptExecutorService extends script_executor.UnimplementedScriptExecutorS
       call.end()
     }
 
-    const process = exec(`sh -e ${tmpFile.name}`)
+    const process = spawn(`sh -e ${tmpFile.name}`)
 
     process.stdout?.on('data', data => {
       console.log(`stdout: ${data}`)
