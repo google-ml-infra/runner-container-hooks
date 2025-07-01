@@ -992,7 +992,17 @@ export async function cpToPod(podName: string, containerName: string, srcPath: s
           },
         )
       } catch (error) {
-        core.debug(`error cp to pod 1 ` + JSON.stringify(error))
+        core.debug(`error cp to pod 1 ` + error)
+        const message = (error as any)?.response?.body?.message || error
+        core.debug(`failed to run script step: ${message}`)
+        const keys = Object.keys(error as {});
+
+        // Print the array of keys
+        console.log(keys); // Output: ["name", "age", "city"]
+        
+        for (const key of keys) {
+          console.log((error as {})[key])
+        }
       }
     });
     core.debug('done copying')
