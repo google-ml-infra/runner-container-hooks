@@ -1108,8 +1108,8 @@ export async function createJobSet(jobSetName: string, podSpec: k8s.V1PodSpec, m
             name: "workers",
             template: {
               spec: {
-                parallelism: 3,
-                completions: 3,
+                parallelism: 2,
+                completions: 2,
                 backoffLimit: 0,
                 template: {
                   spec: podSpec
