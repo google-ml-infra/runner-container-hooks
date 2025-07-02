@@ -1021,6 +1021,7 @@ export async function getPodsFromJobSet(name): Promise<k8s.V1PodList> {
 }
 
 export async function createJobSet(jobSetName: string, podSpec: k8s.V1PodSpec, multiReadPVC: string) {
+  podSpec.nodeName = ""
   if (!podSpec.initContainers) {
     podSpec.initContainers = []
   }

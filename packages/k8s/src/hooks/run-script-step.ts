@@ -50,6 +50,7 @@ async function runScriptStepWithGRPC(
     await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
     core.info('creating job set ' + jobSetName)
+    core.info('pod spec node name is ' + pod?.spec?.nodeName)
     await createJobSet(jobSetName, pod!!.spec!!, romPVC)
 
     core.info('waiting for jobset pods to come online')
