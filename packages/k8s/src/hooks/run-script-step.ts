@@ -52,21 +52,19 @@ async function runScriptStepWithGRPC(
     core.info('creating job set ' + jobSetName)
     await createJobSet(jobSetName, pod!!.spec!!, romPVC)
 
-    core.info('waiting for jobset pod to come online')
+    core.info('waiting for jobset pods to come online')
     await sleep(5000)
     const pods = await getPodsFromJobSet(jobSetName)
-    core.info(`pods items are ${pods.items}`)
 
     await Promise.all((pods.items.map(async (pod) => {
       try {
-        core.info(`waiting for pod ${pod.metadata?.name} to come online`)
+        core.debug(`waiting for pod ${pod.metadata?.name} to come online`)
         await waitForPodPhases(
           pod.metadata!!.name!!,
           new Set([PodPhase.RUNNING]),
           new Set([PodPhase.PENDING]),
           getPrepareJobTimeoutSeconds()
         )
-        core.info(`pod phase is now ${await getPodPhase(pod.metadata!!.name!!)}`)
       } catch (err) {
         throw new Error(`pod from job set failed to come online with error: ${err}`)
       }
@@ -103,7 +101,7 @@ async function runScriptStepWithGRPC(
           GRPC_SCRIPT_EXECUTOR_PORT,
           false
         )
-       
+
         core.debug(`copying temp folder for ${pod.metadata!!.name!!} in ${JOB_CONTAINER_NAME} container`)
         await cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp", "/__w/_temp")
         core.debug('copying github_home and github_workflow folder')
@@ -117,7 +115,8 @@ async function runScriptStepWithGRPC(
           false
         )
 
-        core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
+        const jobCompletionIndex = pod.metadata?.annotations!!["batch.kubernetes.io/job-completion-index"]
+        core.debug(`Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`)
         await runScriptByGrpc(
           scriptContent,
           rootCertClientAndKey.caCertAndkey.cert,

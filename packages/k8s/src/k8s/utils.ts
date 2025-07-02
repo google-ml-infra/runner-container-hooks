@@ -346,6 +346,7 @@ export async function runScriptByGrpc(
   ip: string,
   grpc_port = 50051,
   streamOutputAndError = true,
+  jobPrefix = ''
 ): Promise<void> {
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
@@ -376,10 +377,10 @@ export async function runScriptByGrpc(
         exitCode = response.code
       }
       if (response.has_output && streamOutputAndError) {
-        process.stdout.write(response.output)
+        process.stdout.write(`${jobPrefix}: ${response.output}`)
       }
       if (response.has_error && streamOutputAndError) {
-        process.stderr.write(response.error)
+        process.stderr.write(`${jobPrefix}: ${response.error}`)
       }
     })
 
@@ -387,17 +388,17 @@ export async function runScriptByGrpc(
       // Half a second wait in case the data event with the exit code did not get triggered yet.
       await sleep(500)
       if (streamOutputAndError) {
-        process.stdout.write(`Job exit code is ${exitCode}.`)
+        process.stdout.write(`${jobPrefix}: Job exit code is ${exitCode}.`)
       }
       if (exitCode === 0) {
         resolve()
       } else {
-        reject(new Error(`Job failed with exit code ${exitCode}.`))
+        reject(new Error(`${jobPrefix}: Job failed with exit code ${exitCode}.`))
       }
     })
 
     call.on('error', (err: any) => {
-      const errorMessage = `Error execing ${command}: ${err}`
+      const errorMessage = `${jobPrefix}: Error execing ${command}: ${err}`
       if (streamOutputAndError) {
         process.stdout.write(errorMessage)
       }
