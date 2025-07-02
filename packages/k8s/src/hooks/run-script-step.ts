@@ -100,7 +100,8 @@ async function runScriptStepWithGRPC(
           rootCertClientAndKey.clientCertAndKey.cert,
           rootCertClientAndKey.clientCertAndKey.privateKey,
           pod.status!!.podIP!!,
-          GRPC_SCRIPT_EXECUTOR_PORT
+          GRPC_SCRIPT_EXECUTOR_PORT,
+          false
         )
        
         core.debug(`copying temp folder for ${pod.metadata!!.name!!} in ${JOB_CONTAINER_NAME} container`)
@@ -112,7 +113,8 @@ async function runScriptStepWithGRPC(
           rootCertClientAndKey.clientCertAndKey.cert,
           rootCertClientAndKey.clientCertAndKey.privateKey,
           pod.status!!.podIP!!,
-          GRPC_SCRIPT_EXECUTOR_PORT
+          GRPC_SCRIPT_EXECUTOR_PORT,
+          false
         )
 
         core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)

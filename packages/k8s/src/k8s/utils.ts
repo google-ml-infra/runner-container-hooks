@@ -345,7 +345,7 @@ export async function runScriptByGrpc(
   clientKey: string,
   ip: string,
   grpc_port = 50051,
-  streamOutputAndError = false,
+  streamOutputAndError = true,
 ): Promise<void> {
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
