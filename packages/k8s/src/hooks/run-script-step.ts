@@ -125,15 +125,16 @@ async function runScriptStepWithGRPC(
           GRPC_SCRIPT_EXECUTOR_PORT
         )
 
-        core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
-        return await runScriptByGrpc(
+        core.debug(`Running script ${scriptContent} by grpc in pod ${pod.metadata?.name}`)
+        await runScriptByGrpc(
           scriptContent,
           rootCertClientAndKey.caCertAndkey.cert,
           rootCertClientAndKey.clientCertAndKey.cert,
           rootCertClientAndKey.clientCertAndKey.privateKey,
           pod.status!!.podIP!!,
           GRPC_SCRIPT_EXECUTOR_PORT
-        )  
+        )
+        core.debug(`finished running script by grpc`)
       } catch(error) {
         core.info(`error while execing the pod in the jobset ${error}`)
         await sleep(600000)
