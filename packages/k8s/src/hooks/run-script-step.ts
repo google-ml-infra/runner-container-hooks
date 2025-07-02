@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { checkIfPvcExist, clonePVCReadOnlyManyFromExistingPVC, cpToPod, createJobSet, createK8sPod, createPod, execPodStep, getJobSet, getPod, getPodPhase, getPodsFromJobSet, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
+import { checkIfJobSetExist, checkIfPvcExist, clonePVCReadOnlyManyFromExistingPVC, cpToPod, createJobSet, createK8sPod, createPod, execPodStep, getJobSet, getPod, getPodPhase, getPodsFromJobSet, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
 import {
   fixArgs,
   PodPhase,
@@ -39,15 +39,15 @@ async function runScriptStepWithGRPC(
     throw new Error(`Failed to get pod ${podName} IP`)
   }
 
-  const romPVC = getReadOnlyManyVolumeClaimName()
+//  const romPVC = getReadOnlyManyVolumeClaimName()
+  const romPVC = "quoct-pvc-restore"
   const jobSetName = getJobSetName()
   core.info('checking if pvc exists ' + romPVC)
-  if (await checkIfPvcExist(romPVC)) {
+  if (await checkIfJobSetExist(jobSetName)) {
     core.info("Found pvc" + romPVC)
   } else {
     core.info("clone persistent volume " + romPVC + " for test")
-    // await clonePersistentVolume("quoct-post-test-workflow")
-    await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
+    // await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
     core.info('creating job set ' + jobSetName)
     core.info('pod spec node name is ' + pod?.spec?.nodeName)

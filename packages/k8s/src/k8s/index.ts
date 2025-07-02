@@ -317,6 +317,21 @@ export async function checkIfPvcExist(romPVC: string): Promise<boolean> {
   }
 }
 
+export async function checkIfJobSetExist(name: string): Promise<boolean> {
+  try {
+    const jobset = await k8sCustomApi.getNamespacedCustomObject({ group: "jobset.x-k8s.io", version: "v1alpha2", namespace: namespace(), plural: "jobsets", name })
+    core.info("jobset is  " + JSON.stringify(jobset))
+    return true
+  } catch (error) {
+    if ((error as any)?.code === 404) {
+      core.debug(`jobset ${name} does not exist`)
+      return false;
+    } else {
+      throw new Error(`Error checking jobset '${name}': ${error}`);
+    }
+  }  
+}
+
 export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, romPVC: string): Promise<void> {
   const claim = await k8sApi.readNamespacedPersistentVolumeClaim({
     namespace: namespace(),
