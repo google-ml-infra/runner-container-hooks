@@ -3,7 +3,25 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { checkIfJobSetExist, checkIfPvcExist, clonePVCReadOnlyManyFromExistingPVC, cpToPod, createJobSet, createK8sPod, createPod, execPodStep, getJobSet, getPod, getPodPhase, getPodsFromJobSet, getPodStatus, getPrepareJobTimeoutSeconds, getRootCertClientCertAndKey, waitForPodPhases } from '../k8s'
+import {
+  checkIfJobSetExist,
+  checkIfPvcExist,
+  clonePVCReadOnlyManyFromExistingPVC,
+  cpToPod,
+  createJobSet,
+  createK8sPod,
+  createPod,
+  createRomPvcFromPvc,
+  execPodStep,
+  getJobSet,
+  getPod,
+  getPodPhase,
+  getPodsFromJobSet,
+  getPodStatus,
+  getPrepareJobTimeoutSeconds,
+  getRootCertClientCertAndKey,
+  waitForPodPhases
+} from '../k8s'
 import {
   fixArgs,
   PodPhase,
@@ -13,7 +31,14 @@ import {
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
-import { getJobSetName, getReadOnlyManyVolumeClaimName, getVolumeClaimName, GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
+import {
+  getJobSetName,
+  getReadOnlyManyVolumeClaimName,
+  getSnapshotName,
+  getVolumeClaimName,
+  GRPC_SCRIPT_EXECUTOR_PORT,
+  JOB_CONTAINER_NAME
+} from './constants'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
@@ -39,37 +64,41 @@ async function runScriptStepWithGRPC(
     throw new Error(`Failed to get pod ${podName} IP`)
   }
 
-//  const romPVC = getReadOnlyManyVolumeClaimName()
-  const romPVC = "quoct-pvc-restore"
+  const romPVC = getReadOnlyManyVolumeClaimName()
   const jobSetName = getJobSetName()
   core.info('checking if pvc exists ' + romPVC)
   if (await checkIfJobSetExist(jobSetName)) {
-    core.info("Found pvc" + romPVC)
+    core.info('Found pvc' + romPVC)
   } else {
-    core.info("clone persistent volume " + romPVC + " for test")
+    core.info('creating snapshot from ' + getVolumeClaimName())
+    await createRomPvcFromPvc(getVolumeClaimName(), romPVC)
+    // core.info("clone persistent volume " + romPVC + " for test")
     // await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
     core.info('creating job set ' + jobSetName)
-    core.info('pod spec node name is ' + pod?.spec?.nodeName)
     await createJobSet(jobSetName, pod!!.spec!!, romPVC)
 
     core.info('waiting for jobset pods to come online')
     await sleep(5000)
     const pods = await getPodsFromJobSet(jobSetName)
 
-    await Promise.all((pods.items.map(async (pod) => {
-      try {
-        core.debug(`waiting for pod ${pod.metadata?.name} to come online`)
-        await waitForPodPhases(
-          pod.metadata!!.name!!,
-          new Set([PodPhase.RUNNING]),
-          new Set([PodPhase.PENDING]),
-          getPrepareJobTimeoutSeconds()
-        )
-      } catch (err) {
-        throw new Error(`pod from job set failed to come online with error: ${err}`)
-      }
-    })))
+    await Promise.all(
+      pods.items.map(async pod => {
+        try {
+          core.debug(`waiting for pod ${pod.metadata?.name} to come online`)
+          await waitForPodPhases(
+            pod.metadata!!.name!!,
+            new Set([PodPhase.RUNNING]),
+            new Set([PodPhase.PENDING]),
+            getPrepareJobTimeoutSeconds()
+          )
+        } catch (err) {
+          throw new Error(
+            `pod from job set failed to come online with error: ${err}`
+          )
+        }
+      })
+    )
     core.info('pods from jobset are now online')
   }
 
@@ -90,52 +119,66 @@ async function runScriptStepWithGRPC(
   const pods = await getPodsFromJobSet(jobSetName)
   core.debug(`Retrieved ${pods.items.length}`)
   try {
-    await Promise.all(pods.items.map(async (pod) => {
-      try {
-        core.debug('deleting _temp folder')
-        await runScriptByGrpc(
-          "rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow",
-          rootCertClientAndKey.caCertAndkey.cert,
-          rootCertClientAndKey.clientCertAndKey.cert,
-          rootCertClientAndKey.clientCertAndKey.privateKey,
-          pod.status!!.podIP!!,
-          GRPC_SCRIPT_EXECUTOR_PORT,
-          false
-        )
+    await Promise.all(
+      pods.items.map(async pod => {
+        try {
+          core.debug('deleting _temp folder')
+          await runScriptByGrpc(
+            'rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow',
+            rootCertClientAndKey.caCertAndkey.cert,
+            rootCertClientAndKey.clientCertAndKey.cert,
+            rootCertClientAndKey.clientCertAndKey.privateKey,
+            pod.status!!.podIP!!,
+            GRPC_SCRIPT_EXECUTOR_PORT,
+            false
+          )
 
-        core.debug(`copying temp folder for ${pod.metadata!!.name!!} in ${JOB_CONTAINER_NAME} container`)
-        await cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp", "/__w/_temp")
-        core.debug('copying github_home and github_workflow folder')
-        await runScriptByGrpc(
-          "cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow",
-          rootCertClientAndKey.caCertAndkey.cert,
-          rootCertClientAndKey.clientCertAndKey.cert,
-          rootCertClientAndKey.clientCertAndKey.privateKey,
-          pod.status!!.podIP!!,
-          GRPC_SCRIPT_EXECUTOR_PORT,
-          false
-        )
+          core.debug(
+            `copying temp folder for ${pod.metadata!!
+              .name!!} in ${JOB_CONTAINER_NAME} container`
+          )
+          await cpToPod(
+            pod.metadata!!.name!!,
+            JOB_CONTAINER_NAME,
+            '/home/runner/_work/_temp',
+            '/__w/_temp'
+          )
+          core.debug('copying github_home and github_workflow folder')
+          await runScriptByGrpc(
+            'cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow',
+            rootCertClientAndKey.caCertAndkey.cert,
+            rootCertClientAndKey.clientCertAndKey.cert,
+            rootCertClientAndKey.clientCertAndKey.privateKey,
+            pod.status!!.podIP!!,
+            GRPC_SCRIPT_EXECUTOR_PORT,
+            false
+          )
 
-        const jobCompletionIndex = pod.metadata?.annotations!!["batch.kubernetes.io/job-completion-index"]
-        core.debug(`Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`)
-        await runScriptByGrpc(
-          scriptContent,
-          rootCertClientAndKey.caCertAndkey.cert,
-          rootCertClientAndKey.clientCertAndKey.cert,
-          rootCertClientAndKey.clientCertAndKey.privateKey,
-          pod.status!!.podIP!!,
-          GRPC_SCRIPT_EXECUTOR_PORT,
-          true,
-          `job-${jobCompletionIndex}: `
-        )
-        core.debug(`finished running script by grpc`)
-      } catch(error) {
-        core.info(`error while execing the pod in the jobset ${error}`)
-        await sleep(600000)
-      }
-    }))  
+          const jobCompletionIndex =
+            pod.metadata?.annotations!![
+              'batch.kubernetes.io/job-completion-index'
+            ]
+          core.debug(
+            `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
+          )
+          await runScriptByGrpc(
+            scriptContent,
+            rootCertClientAndKey.caCertAndkey.cert,
+            rootCertClientAndKey.clientCertAndKey.cert,
+            rootCertClientAndKey.clientCertAndKey.privateKey,
+            pod.status!!.podIP!!,
+            GRPC_SCRIPT_EXECUTOR_PORT,
+            true,
+            `job-${jobCompletionIndex}: `
+          )
+        } catch (error) {
+          core.info(`error while execing the pod in the jobset ${error}`)
+          await sleep(600000)
+        }
+      })
+    )
   } catch (error) {
-    core.info("error execing waiting for debug " + error)
+    core.info('error execing waiting for debug ' + error)
     await sleep(600000)
   }
 }
@@ -147,7 +190,7 @@ export async function runScriptStep(
 ): Promise<void> {
   if (useScriptExecutor()) {
     try {
-      return runScriptStepWithGRPC(args, state)    
+      return runScriptStepWithGRPC(args, state)
     } catch (err) {
       core.debug(
         `Run script Executor through GRPC failed: ${JSON.stringify(err)}`

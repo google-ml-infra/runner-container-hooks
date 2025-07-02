@@ -32,7 +32,11 @@ import {
   SCRIPT_EXECUTOR_ENTRY_POINT,
   SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
 } from '../k8s/utils'
-import { CONTAINER_EXTENSION_PREFIX, getVolumeClaimName, JOB_CONTAINER_NAME } from './constants'
+import {
+  CONTAINER_EXTENSION_PREFIX,
+  getVolumeClaimName,
+  JOB_CONTAINER_NAME
+} from './constants'
 
 export async function prepareJob(
   args: PrepareJobArgs,

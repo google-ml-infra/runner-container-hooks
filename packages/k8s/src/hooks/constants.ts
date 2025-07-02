@@ -32,6 +32,10 @@ export function getVolumeClaimName(): string {
   return name
 }
 
+export function getSnapshotName(): string {
+  return `${getRunnerPodName()}-ss`
+}
+
 // The end characters are better for uniqueness
 export function getJobSetName(): string {
   return `jobset-${getRunnerPodName().slice(-30)}`

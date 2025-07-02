@@ -3,12 +3,13 @@ import * as k8s from '@kubernetes/client-node'
 import { ContainerInfo, Registry } from 'hooklib'
 import * as stream from 'stream'
 import * as tar from 'tar-fs'
-import { WritableStreamBuffer } from 'stream-buffers';
+import { WritableStreamBuffer } from 'stream-buffers'
 import {
   getJobPodName,
   getReadOnlyManyVolumeClaimName,
   getRunnerPodName,
   getSecretName,
+  getSnapshotName,
   getStepPodName,
   getVolumeClaimName,
   JOB_CONTAINER_NAME,
@@ -33,7 +34,7 @@ kc.loadFromDefault()
 const k8sApi = kc.makeApiClient(k8s.CoreV1Api)
 const k8sBatchV1Api = kc.makeApiClient(k8s.BatchV1Api)
 const k8sAuthorizationV1Api = kc.makeApiClient(k8s.AuthorizationV1Api)
-const k8sCustomApi = kc.makeApiClient(k8s.CustomObjectsApi);
+const k8sCustomApi = kc.makeApiClient(k8s.CustomObjectsApi)
 const k8sExec = new k8s.Exec(kc)
 
 const DEFAULT_WAIT_FOR_POD_TIME_SECONDS = 10 * 60 // 10 min
@@ -167,9 +168,7 @@ export async function createPod(
   })
 }
 
-export async function createK8sPod(
-  pod: k8s.V1Pod
-): Promise<k8s.V1Pod> {
+export async function createK8sPod(pod: k8s.V1Pod): Promise<k8s.V1Pod> {
   return await k8sApi.createNamespacedPod({
     namespace: namespace(),
     body: pod
@@ -305,43 +304,150 @@ export async function checkIfPvcExist(romPVC: string): Promise<boolean> {
       namespace: namespace(),
       name: romPVC
     })
-    core.info("claim is  " + JSON.stringify(claim))
+    core.info('claim is  ' + JSON.stringify(claim))
     return claim.metadata?.name === romPVC
   } catch (error) {
     if ((error as any)?.code === 404) {
       core.debug(`PVC claim ${romPVC} does not exist`)
-      return false;
+      return false
     } else {
-      throw new Error(`Error checking PVC '${romPVC}': ${error}`);
+      throw new Error(`Error checking PVC '${romPVC}': ${error}`)
     }
   }
 }
 
 export async function checkIfJobSetExist(name: string): Promise<boolean> {
   try {
-    const jobset = await k8sCustomApi.getNamespacedCustomObject({ group: "jobset.x-k8s.io", version: "v1alpha2", namespace: namespace(), plural: "jobsets", name })
-    core.info("jobset is  " + JSON.stringify(jobset))
+    const jobset = await k8sCustomApi.getNamespacedCustomObject({
+      group: 'jobset.x-k8s.io',
+      version: 'v1alpha2',
+      namespace: namespace(),
+      plural: 'jobsets',
+      name
+    })
+    core.info('jobset is  ' + JSON.stringify(jobset))
     return true
   } catch (error) {
     if ((error as any)?.code === 404) {
       core.debug(`jobset ${name} does not exist`)
-      return false;
+      return false
     } else {
-      throw new Error(`Error checking jobset '${name}': ${error}`);
+      throw new Error(`Error checking jobset '${name}': ${error}`)
     }
-  }  
+  }
 }
 
-export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, romPVC: string): Promise<void> {
+export async function createSnapshot(
+  existingPVC: string,
+  snapshotName: string
+): Promise<void> {
+  k8sCustomApi.createNamespacedCustomObject({
+    group: 'snapshot.storage.k8s.io',
+    version: 'v1',
+    namespace: namespace(),
+    plural: 'volumesnapshots',
+    body: {
+      apiVersion: 'snapshot.storage.k8s.io/v1',
+      kind: 'VolumeSnapshot',
+      metadata: {
+        name: snapshotName,
+        namespace: namespace()
+      },
+      spec: {
+        volumeSnapshotClassName: 'my-snapshotclass',
+        source: {
+          persistentVolumeClaimName: existingPVC
+        }
+      }
+    }
+  })
+}
+
+export async function waitForSnapshot(name: string): Promise<void> {
+  const backOffManager = new BackOffManager(60)
+  while (true) {
+    try {
+      const snapshot = await k8sCustomApi.getNamespacedCustomObject({
+        group: 'snapshot.storage.k8s.io',
+        version: 'v1',
+        namespace: namespace(),
+        plural: 'volumesnapshots',
+        name
+      })
+      if (snapshot.status?.readyToUse) {
+        break
+      }
+
+      console.log(`snapshot ${name} is not ready`)
+    } catch (error) {
+      console.log(`snapshot ${name} is not ready`)
+    }
+    await backOffManager.backOff()
+  }
+}
+
+export async function createRomPvcFromPvc(
+  existingPVC: string,
+  romPVC: string
+): Promise<void> {
+  const snapshotName = getSnapshotName()
+  // TODO(quoct): Add labels so we can do clean up
+  core.debug(`Creating snapshot ${snapshotName}`)
+  await createSnapshot(existingPVC, snapshotName)
+
+  core.debug(`Wait for snapshot to get ready`)
+  await waitForSnapshot(snapshotName)
+
+  core.debug(`Snapshot is ready`)
+  const existingClaim = await k8sApi.readNamespacedPersistentVolumeClaim({
+    namespace: namespace(),
+    name: existingPVC
+  })
+  core.debug(`Creating ReadOnlyMany PVC ${romPVC}`)
+  await k8sApi.createNamespacedPersistentVolumeClaim({
+    namespace: namespace(),
+    body: {
+      metadata: {
+        name: romPVC,
+        namespace: namespace()
+      },
+      spec: {
+        storageClassName: existingClaim.spec?.storageClassName,
+        dataSource: {
+          name: snapshotName,
+          kind: 'VolumeSnapshot',
+          apiGroup: 'snapshot.storage.k8s.io'
+        },
+        accessModes: ['ReadOnlyMany'],
+        resources: {
+          requests: {
+            storage: existingClaim.spec?.resources?.requests?.storage || '500Gi'
+          }
+        }
+      }
+    }
+  })
+}
+
+export async function clonePVCReadOnlyManyFromExistingPVC(
+  existingPVC: string,
+  romPVC: string
+): Promise<void> {
   const claim = await k8sApi.readNamespacedPersistentVolumeClaim({
     namespace: namespace(),
     name: existingPVC
   })
-  core.debug(`Creating readonly many PV from PV ${JSON.stringify(claim.spec?.volumeName)}`)
+  core.debug(
+    `Creating readonly many PV from PV ${JSON.stringify(
+      claim.spec?.volumeName
+    )}`
+  )
   if (!claim.spec?.volumeName) {
     throw new Error('Cannot get volume name from spec')
   }
-  const existingPV = await k8sApi.readPersistentVolume({ name: claim.spec?.volumeName!! })
+  const existingPV = await k8sApi.readPersistentVolume({
+    name: claim.spec?.volumeName!!
+  })
   if (!existingPV.spec?.csi?.volumeHandle) {
     throw new Error('Only support for CSI driver at the moment')
   }
@@ -355,9 +461,9 @@ export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, r
       },
       spec: {
         storageClassName: existingPV.spec.storageClassName,
-        persistentVolumeReclaimPolicy: "Delete",
+        persistentVolumeReclaimPolicy: 'Delete',
         capacity: existingPV.spec.capacity,
-        accessModes: ["ReadOnlyMany"],
+        accessModes: ['ReadOnlyMany'],
         claimRef: {
           namespace: namespace(),
           name: romPVC
@@ -373,23 +479,6 @@ export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, r
   })
   core.debug(`created pv ${JSON.stringify(pv)}`)
 
-
-  /**
-   * 
-  apiVersion: v1
-  kind: PersistentVolumeClaim
-  metadata:
-    namespace: PVC_NAMESPACE
-    name: PVC_NAME
-  spec:
-    storageClassName: "STORAGE_CLASS_NAME"
-    volumeName: PV_NAME
-    accessModes:
-      - ReadOnlyMany
-    resources:
-      requests:
-        storage: DISK_SIZE
-  * */
   core.debug(`Creating volume claim`)
   await k8sApi.createNamespacedPersistentVolumeClaim({
     namespace: namespace(),
@@ -401,10 +490,10 @@ export async function clonePVCReadOnlyManyFromExistingPVC(existingPVC: string, r
       spec: {
         storageClassName: claim.spec?.storageClassName,
         volumeName: newPVName,
-        accessModes: ["ReadOnlyMany"],
+        accessModes: ['ReadOnlyMany'],
         resources: {
           requests: {
-            storage: claim.spec?.resources?.requests?.storage || "500Gi"
+            storage: claim.spec?.resources?.requests?.storage || '500Gi'
           }
         }
       }
@@ -668,9 +757,7 @@ export async function prunePods(): Promise<void> {
   )
 }
 
-export async function getPod(
-  name: string
-): Promise<k8s.V1Pod | undefined> {
+export async function getPod(name: string): Promise<k8s.V1Pod | undefined> {
   return await k8sApi.readNamespacedPod({
     name,
     namespace: namespace()
@@ -976,14 +1063,25 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
 }
 
 export async function getJobSet(name) {
-  return await k8sCustomApi.getNamespacedCustomObject({ group: "jobset.x-k8s.io", version: "v1alpha2", namespace: namespace(), plural: "jobsets", name })
+  return await k8sCustomApi.getNamespacedCustomObject({
+    group: 'jobset.x-k8s.io',
+    version: 'v1alpha2',
+    namespace: namespace(),
+    plural: 'jobsets',
+    name
+  })
 }
 
-export async function cpToPod(podName: string, containerName: string, srcPath: string, tgtPath: string): Promise<void> {
-  core.debug('start packing to pod');
-  const command = ['tar', 'xf', '-', '-C', tgtPath];
-  const readStream = tar.pack(srcPath);
-  const errStream = new WritableStreamBuffer();
+export async function cpToPod(
+  podName: string,
+  containerName: string,
+  srcPath: string,
+  tgtPath: string
+): Promise<void> {
+  core.debug('start packing to pod')
+  const command = ['tar', 'xf', '-', '-C', tgtPath]
+  const readStream = tar.pack(srcPath)
+  const errStream = new WritableStreamBuffer()
   try {
     core.debug('start copying pod name')
     await new Promise<void>(async (resolve, reject) => {
@@ -999,27 +1097,29 @@ export async function cpToPod(podName: string, containerName: string, srcPath: s
           false,
           async () => {
             if (errStream.size()) {
-              core.debug("error copying to pod 0 ")
-              reject(`Error from cpToPod - details: \n ${errStream.getContentsAsString()}`);
+              core.debug('error copying to pod 0 ')
+              reject(
+                `Error from cpToPod - details: \n ${errStream.getContentsAsString()}`
+              )
             } else {
               resolve()
             }
-          },
+          }
         )
       } catch (error) {
         core.debug(`error cp to pod 1 ` + error)
         const message = (error as any)?.response?.body?.message || error
         core.debug(`failed to run script step: ${message}`)
-        const keys = Object.keys(error as {});
+        const keys = Object.keys(error as {})
 
         // Print the array of keys
-        console.log(keys); // Output: ["name", "age", "city"]
-        
+        console.log(keys) // Output: ["name", "age", "city"]
+
         for (const key of keys) {
           console.log((error as {})[key])
         }
       }
-    });
+    })
     core.debug('done copying')
   } catch (error) {
     core.debug(`error cp to pod 2 ` + JSON.stringify(error))
@@ -1035,8 +1135,12 @@ export async function getPodsFromJobSet(name): Promise<k8s.V1PodList> {
   })
 }
 
-export async function createJobSet(jobSetName: string, podSpec: k8s.V1PodSpec, multiReadPVC: string) {
-  podSpec.nodeName = ""
+export async function createJobSet(
+  jobSetName: string,
+  podSpec: k8s.V1PodSpec,
+  multiReadPVC: string
+) {
+  podSpec.nodeName = ''
   if (!podSpec.initContainers) {
     podSpec.initContainers = []
   }
@@ -1045,20 +1149,20 @@ export async function createJobSet(jobSetName: string, podSpec: k8s.V1PodSpec, m
   // Right now we don't have a way to use a unique PVC for each jobset.
   // The init container will copy the content of work-clone, which is a PVC that can be read by many nodes.
   const initContainer: k8s.V1Container = {
-    name: "copy-directory",
-    image: "busybox:1.28",
-    command: ["sh", "-c", "cp -r /work_copy/. /__w; ls /__w"],
+    name: 'copy-directory',
+    image: 'busybox:1.28',
+    command: ['sh', '-c', 'cp -r /work_copy/. /__w; ls /__w'],
     volumeMounts: [
       {
-        name: "work-clone",
-        mountPath: "/work_copy",
-        readOnly: true,
+        name: 'work-clone',
+        mountPath: '/work_copy',
+        readOnly: true
       },
       {
-        mountPath: "/__w",
-        name: "work",
-      },
-    ],
+        mountPath: '/__w',
+        name: 'work'
+      }
+    ]
   }
 
   podSpec.initContainers.unshift(initContainer)
@@ -1066,46 +1170,49 @@ export async function createJobSet(jobSetName: string, podSpec: k8s.V1PodSpec, m
     podSpec.volumes = []
   }
 
-  const workVolume = podSpec.volumes.find(volume => volume.name === "work")
+  const workVolume = podSpec.volumes.find(volume => volume.name === 'work')
   if (workVolume) {
     workVolume.persistentVolumeClaim = undefined
     workVolume.emptyDir = {}
   } else {
     podSpec.volumes.push({
-      name: "work",
+      name: 'work',
       emptyDir: {}
     })
   }
 
-  podSpec.volumes.push(
-    {
-      name: "work-clone",
-      persistentVolumeClaim: {
-        claimName: multiReadPVC,
-        readOnly: true,
-      },
-    })
+  podSpec.volumes.push({
+    name: 'work-clone',
+    persistentVolumeClaim: {
+      claimName: multiReadPVC,
+      readOnly: true
+    }
+  })
 
-  const jobContainer = podSpec.containers.find(container => container.name === JOB_CONTAINER_NAME)
+  const jobContainer = podSpec.containers.find(
+    container => container.name === JOB_CONTAINER_NAME
+  )
   if (jobContainer?.volumeMounts) {
-    jobContainer.volumeMounts = jobContainer.volumeMounts.filter(volumeMount => !volumeMount.mountPath.startsWith("/github/"))
+    jobContainer.volumeMounts = jobContainer.volumeMounts.filter(
+      volumeMount => !volumeMount.mountPath.startsWith('/github/')
+    )
   }
 
   return await k8sCustomApi.createNamespacedCustomObject({
-    group: "jobset.x-k8s.io",
-    version: "v1alpha2",
+    group: 'jobset.x-k8s.io',
+    version: 'v1alpha2',
     namespace: namespace(),
-    plural: "jobsets",
+    plural: 'jobsets',
     body: {
-      apiVersion: "jobset.x-k8s.io/v1alpha2",
-      kind: "JobSet",
+      apiVersion: 'jobset.x-k8s.io/v1alpha2',
+      kind: 'JobSet',
       metadata: {
         name: jobSetName
       },
       spec: {
         replicatedJobs: [
           {
-            name: "workers",
+            name: 'workers',
             template: {
               spec: {
                 parallelism: 2,
