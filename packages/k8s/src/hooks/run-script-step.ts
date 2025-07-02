@@ -123,7 +123,9 @@ async function runScriptStepWithGRPC(
           rootCertClientAndKey.clientCertAndKey.cert,
           rootCertClientAndKey.clientCertAndKey.privateKey,
           pod.status!!.podIP!!,
-          GRPC_SCRIPT_EXECUTOR_PORT
+          GRPC_SCRIPT_EXECUTOR_PORT,
+          true,
+          `job-${jobCompletionIndex}: `
         )
         core.debug(`finished running script by grpc`)
       } catch(error) {
