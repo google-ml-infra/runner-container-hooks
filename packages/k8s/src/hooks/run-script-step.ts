@@ -28,8 +28,6 @@ async function runScriptStepWithGRPC(
     environmentVariables
   )
 
-  core.info("script content is " + scriptContent)
-
   core.info('using script executor')
   const podName = state.jobPod
   const pod = await getPod(state.jobPod)
@@ -55,8 +53,6 @@ async function runScriptStepWithGRPC(
     await createJobSet(jobSetName, pod!!.spec!!, romPVC)
 
     core.info('waiting for jobset pod to come online')
-    // TODO(quoct): Make a wait for up to 60 seconds here with a loop?
-    core.info('sleep for 5 seconds to wait for pods creation')
     await sleep(5000)
     const pods = await getPodsFromJobSet(jobSetName)
     core.info(`pods items are ${pods.items}`)
@@ -106,12 +102,6 @@ async function runScriptStepWithGRPC(
           pod.status!!.podIP!!,
           GRPC_SCRIPT_EXECUTOR_PORT
         )
-
-        core.info('read dir files')
-        const files = fs.readdirSync('/home/runner/_work/_temp/');
-        core.info('Files in current directory (synchronous):' + files);
-        const more_files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
-        core.info('Files in current directory (synchronous):' + more_files); 
        
         core.debug(`copying temp folder for ${pod.metadata!!.name!!} in ${JOB_CONTAINER_NAME} container`)
         await cpToPod(pod.metadata!!.name!!, JOB_CONTAINER_NAME, "/home/runner/_work/_temp", "/__w/_temp")
@@ -125,7 +115,7 @@ async function runScriptStepWithGRPC(
           GRPC_SCRIPT_EXECUTOR_PORT
         )
 
-        core.debug(`Running script ${scriptContent} by grpc in pod ${pod.metadata?.name}`)
+        core.debug(`Running script by grpc in pod ${pod.metadata?.name}`)
         await runScriptByGrpc(
           scriptContent,
           rootCertClientAndKey.caCertAndkey.cert,
