@@ -377,10 +377,7 @@ export async function waitForSnapshot(name: string): Promise<void> {
       if (snapshot.status?.readyToUse) {
         break
       }
-
-      console.log(`snapshot ${name} is not ready`)
     } catch (error) {
-      console.log(`snapshot ${name} is not ready`)
     }
     await backOffManager.backOff()
   }
