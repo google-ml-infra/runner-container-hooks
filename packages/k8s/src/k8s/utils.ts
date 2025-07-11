@@ -375,10 +375,10 @@ export async function runScriptByGrpc(
         exitCode = response.code
       }
       if (response.has_output) {
-        process.stdout.write(response.output)
+        process.stdout.write('output ' + response.output)
       }
       if (response.has_error) {
-        process.stderr.write(response.error)
+        process.stderr.write('error ' + response.error)
       }
     })
 
