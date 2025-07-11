@@ -346,6 +346,7 @@ export async function runScriptByGrpc(
   ip: string,
   grpc_port = 50051
 ): Promise<void> {
+  core.info('quoct 0')
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
     grpc.credentials.createSsl(
@@ -364,10 +365,12 @@ export async function runScriptByGrpc(
     }
   )
 
+  core.info('quoct 1')
   // TODO(quoct): Add logic to prevent duplicate execution using the `id` field.
   const call = client.ExecuteScript(
     new script_executor.ScriptRequest({ script: command })
   )
+  core.info('quoct 2')
   await new Promise<void>(async function (resolve, reject) {
     let exitCode = -1
     call.on('data', (response: script_executor.ScriptResponse) => {
