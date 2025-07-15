@@ -29,7 +29,8 @@ import {
   runScriptByGrpc,
   sleep,
   useScriptExecutor,
-  writeEntryPointScript
+  writeEntryPointScript,
+  readExtensionFromFile
 } from '../k8s/utils'
 import {
   getJobSetName,
@@ -75,8 +76,12 @@ async function runScriptStepWithGRPC(
     // core.info("clone persistent volume " + romPVC + " for test")
     // await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
+
+    const extension = readExtensionFromFile()
+    core.info('extension is ' + extension)
+
     core.info('creating job set ' + jobSetName)
-    await createJobSet(jobSetName, pod!!.spec!!, romPVC)
+    await createJobSet(jobSetName, pod!!.spec!!, romPVC, extension!!)
 
     core.info('waiting for jobset pods to come online')
     await sleep(5000)

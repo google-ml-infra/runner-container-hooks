@@ -255,7 +255,8 @@ export async function createJob(
       mergeObjectMeta(job.spec.template, extension.metadata)
     }
     if (extension.spec) {
-      mergePodSpecWithOptions(job.spec.template.spec, extension.spec)
+      core.info('quoct skip merging extension spec')
+      // mergePodSpecWithOptions(job.spec.template.spec, extension.spec)
     }
   }
 
@@ -1135,7 +1136,8 @@ export async function getPodsFromJobSet(name): Promise<k8s.V1PodList> {
 export async function createJobSet(
   jobSetName: string,
   podSpec: k8s.V1PodSpec,
-  multiReadPVC: string
+  multiReadPVC: string,
+  extension: k8s.V1PodTemplateSpec
 ) {
   podSpec.nodeName = ''
   if (!podSpec.initContainers) {
@@ -1194,6 +1196,9 @@ export async function createJobSet(
       volumeMount => !volumeMount.mountPath.startsWith('/github/')
     )
   }
+  core.debug('before merged ' + JSON.stringify(podSpec))
+  mergePodSpecWithOptions(podSpec, extension.spec!!)
+  core.debug('after merged ' + JSON.stringify(podSpec))
 
   return await k8sCustomApi.createNamespacedCustomObject({
     group: 'jobset.x-k8s.io',
