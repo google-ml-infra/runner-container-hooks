@@ -65,7 +65,6 @@ async function runScriptStepWithGRPC(
 
   const romPVC = getReadOnlyManyVolumeClaimName()
   const jobSetName = getJobSetName()
-  core.info('checking if pvc exists ' + romPVC)
   if (await checkIfJobSetExist(jobSetName)) {
     core.info('jobset already exists ' + jobSetName)
   } else {

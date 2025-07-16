@@ -329,7 +329,6 @@ export async function checkIfJobSetExist(name: string): Promise<boolean> {
       plural: 'jobsets',
       name
     })
-    core.info('jobset is  ' + JSON.stringify(jobset))
     return true
   } catch (error) {
     if ((error as any)?.code === 404) {
