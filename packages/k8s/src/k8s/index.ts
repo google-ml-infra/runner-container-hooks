@@ -155,19 +155,11 @@ export async function createPodHelper(
   core.debug('1 app pod is ' + JSON.stringify(appPod))
 
   if (extension?.spec) {
-    const jobContainer = extension.spec.containers.find(
-      c => c.name === JOB_CONTAINER_EXTENSION_NAME
-    )
-    core.debug('quoct modifying checking job container ' + JSON.stringify(extension.spec))
-    if (jobContainer) {
-      core.debug('found the job container')
-      jobContainer.resources = {}
-    }
-    core.debug('quoct modified merging spec ' + JSON.stringify(extension.spec))
     mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
   core.debug('app pod is ' + JSON.stringify(appPod))
-  appPod.spec.containers.find(c => c.name === JOB_CONTAINER_EXTENSION_NAME)!!.resources = {}
+  appPod.spec.containers.find(c => c.name === JOB_CONTAINER_NAME)!!.resources = {}
+  core.debug('app pod is now ' + JSON.stringify(appPod))
   return appPod
 }
 
