@@ -353,7 +353,7 @@ export async function createSnapshot(
   existingPVC: string,
   snapshotName: string
 ): Promise<void> {
-  k8sCustomApi.createNamespacedCustomObject({
+  await k8sCustomApi.createNamespacedCustomObject({
     group: 'snapshot.storage.k8s.io',
     version: 'v1',
     namespace: namespace(),
@@ -761,9 +761,12 @@ export async function prunePods(): Promise<void> {
     return
   }
 
+  core.debug('skipping pod deletion')
+  /*
   await Promise.all(
     podList.items.map(pod => pod.metadata?.name && deletePod(pod.metadata.name))
   )
+    */
 }
 
 export async function getPod(name: string): Promise<k8s.V1Pod | undefined> {
