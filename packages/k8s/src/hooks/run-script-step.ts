@@ -98,6 +98,7 @@ async function runScriptStepWithGRPC(
             getPrepareJobTimeoutSeconds()
           )
         } catch (err) {
+          await sleep(500000)
           throw new Error(
             `pod from job set failed to come online with error: ${err}`
           )
