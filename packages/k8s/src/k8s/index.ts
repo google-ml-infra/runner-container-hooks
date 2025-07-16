@@ -1156,7 +1156,7 @@ export async function createJobSet(
   const initContainer: k8s.V1Container = {
     name: 'copy-directory',
     image: 'ghcr.io/actions/actions-runner:latest',
-    command: ['sh', '-c', 'cp -r /externals/. /__w; ls /__w'],
+    command: ['sh', '-c', 'cp -r /home/runner/externals /__w; ls /__w'],
     volumeMounts: [
       {
         mountPath: '/__w',
