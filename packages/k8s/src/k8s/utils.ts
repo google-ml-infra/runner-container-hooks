@@ -366,11 +366,12 @@ export async function runScriptByGrpc(
     }
   )
 
+  core.debug(`executing script ${command} for job ${jobPrefix}`)
   // TODO(quoct): Add logic to prevent duplicate execution using the `id` field.
   const call = client.ExecuteScript(
     new script_executor.ScriptRequest({ script: command })
   )
-  await new Promise<void>(async function (resolve, reject) {
+  return new Promise<void>(async function (resolve, reject) {
     let exitCode = -1
     call.on('data', (response: script_executor.ScriptResponse) => {
       if (response.has_code) {
