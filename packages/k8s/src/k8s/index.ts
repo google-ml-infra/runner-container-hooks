@@ -151,7 +151,8 @@ export async function createPodHelper(
   }
 
   if (extension?.spec) {
-    mergePodSpecWithOptions(appPod.spec, extension.spec)
+    core.debug('quoct skipping merging spec ' + _ extension.spec)
+    // mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
   return appPod
 }
@@ -1197,6 +1198,7 @@ export async function createJobSet(
     )
   }
   core.debug('before merged ' + JSON.stringify(podSpec))
+  core.debug('extension is ' + extension.spec!!)
   mergePodSpecWithOptions(podSpec, extension.spec!!)
   core.debug('after merged ' + JSON.stringify(podSpec))
 
