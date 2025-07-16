@@ -122,7 +122,8 @@ export async function createPodHelper(
   if (useKubeScheduler()) {
     appPod.spec.affinity = await getPodAffinity(nodeName)
   } else {
-    appPod.spec.nodeName = nodeName
+    core.info('skip node name assigning')
+//    appPod.spec.nodeName = nodeName
   }
   const claimName = getVolumeClaimName()
   appPod.spec.volumes.push(
@@ -151,8 +152,8 @@ export async function createPodHelper(
   }
 
   if (extension?.spec) {
-    core.debug('quoct skipping merging spec ' + JSON.stringify(extension.spec))
-    // mergePodSpecWithOptions(appPod.spec, extension.spec)
+    core.debug('quoct modifying merging spec ' + JSON.stringify(extension.spec))
+    mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
   return appPod
 }
