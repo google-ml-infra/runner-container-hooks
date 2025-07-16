@@ -151,7 +151,7 @@ export async function createPodHelper(
   }
 
   if (extension?.spec) {
-    core.debug('quoct skipping merging spec ' + _ extension.spec)
+    core.debug('quoct skipping merging spec ' + JSON.stringify(extension.spec))
     // mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
   return appPod
