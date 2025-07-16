@@ -155,6 +155,7 @@ export async function createPodHelper(
     core.debug('quoct modifying merging spec ' + JSON.stringify(extension.spec))
     // mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
+  core.debug('app pod is ' + JSON.stringify(appPod))
   return appPod
 }
 
