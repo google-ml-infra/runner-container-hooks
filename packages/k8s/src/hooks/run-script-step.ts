@@ -76,7 +76,6 @@ async function runScriptStepWithGRPC(
     // core.info("clone persistent volume " + romPVC + " for test")
     // await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
-
     const extension = readExtensionFromFile()
     core.info('extension is ' + extension)
 

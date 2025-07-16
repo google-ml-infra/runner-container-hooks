@@ -1155,14 +1155,9 @@ export async function createJobSet(
   // The init container will copy the content of work-clone, which is a PVC that can be read by many nodes.
   const initContainer: k8s.V1Container = {
     name: 'copy-directory',
-    image: 'busybox:1.28',
-    command: ['sh', '-c', 'cp -r /work_copy/. /__w; ls /__w'],
+    image: 'ghcr.io/actions/actions-runner:latest',
+    command: ['sh', '-c', 'cp -r /externals/. /__w; ls /__w'],
     volumeMounts: [
-      {
-        name: 'work-clone',
-        mountPath: '/work_copy',
-        readOnly: true
-      },
       {
         mountPath: '/__w',
         name: 'work'
