@@ -152,6 +152,8 @@ export async function createPodHelper(
     mergeObjectMeta(appPod, extension.metadata)
   }
 
+  core.debug('1 app pod is ' + JSON.stringify(appPod))
+
   if (extension?.spec) {
     const jobContainer = extension.spec.containers.find(
       c => c.name === JOB_CONTAINER_EXTENSION_NAME
