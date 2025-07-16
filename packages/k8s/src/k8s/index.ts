@@ -153,7 +153,7 @@ export async function createPodHelper(
 
   if (extension?.spec) {
     core.debug('quoct modifying merging spec ' + JSON.stringify(extension.spec))
-    mergePodSpecWithOptions(appPod.spec, extension.spec)
+    // mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
   return appPod
 }
