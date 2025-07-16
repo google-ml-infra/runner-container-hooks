@@ -12,6 +12,7 @@ import {
   getSnapshotName,
   getStepPodName,
   getVolumeClaimName,
+  JOB_CONTAINER_EXTENSION_NAME,
   JOB_CONTAINER_NAME,
   RunnerInstanceLabel
 } from '../hooks/constants'
@@ -153,7 +154,7 @@ export async function createPodHelper(
 
   if (extension?.spec) {
     const jobContainer = extension.spec.containers.find(
-      c => c.name === JOB_CONTAINER_NAME
+      c => c.name === JOB_CONTAINER_EXTENSION_NAME
     )
     core.debug('quoct modifying checking job container ' + JSON.stringify(extension.spec))
     if (jobContainer) {
