@@ -127,7 +127,7 @@ async function runScriptStepWithGRPC(
         try {
           core.debug('deleting _temp folder')
           await runScriptByGrpc(
-            'rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow',
+            'rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow; mkdir -p /__w/_temp/',
             rootCertClientAndKey.caCertAndkey.cert,
             rootCertClientAndKey.clientCertAndKey.cert,
             rootCertClientAndKey.clientCertAndKey.privateKey,
