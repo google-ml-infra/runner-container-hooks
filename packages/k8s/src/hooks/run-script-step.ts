@@ -5,8 +5,6 @@ import * as core from '@actions/core'
 import { RunScriptStepArgs } from 'hooklib'
 import {
   checkIfJobSetExist,
-  checkIfPvcExist,
-  clonePVCReadOnlyManyFromExistingPVC,
   cpToPod,
   createJobSet,
   createK8sPod,
@@ -71,8 +69,8 @@ async function runScriptStepWithGRPC(
   if (await checkIfJobSetExist(jobSetName)) {
     core.info('Found pvc' + romPVC)
   } else {
-    core.info('creating snapshot from ' + getVolumeClaimName())
-    await createRomPvcFromPvc(getVolumeClaimName(), romPVC)
+    // core.info('creating snapshot from ' + getVolumeClaimName())
+    // await createRomPvcFromPvc(getVolumeClaimName(), romPVC)
     // core.info("clone persistent volume " + romPVC + " for test")
     // await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 

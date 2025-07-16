@@ -1181,6 +1181,7 @@ export async function createJobSet(
     })
   }
 
+  /*
   podSpec.volumes.push({
     name: 'work-clone',
     persistentVolumeClaim: {
@@ -1188,6 +1189,7 @@ export async function createJobSet(
       readOnly: true
     }
   })
+    */
 
   const jobContainer = podSpec.containers.find(
     container => container.name === JOB_CONTAINER_NAME
