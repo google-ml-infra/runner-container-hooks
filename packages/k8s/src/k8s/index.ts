@@ -1206,6 +1206,8 @@ export async function createJobSet(
   core.debug('extension is ' + extension.spec!!)
   mergePodSpecWithOptions(podSpec, extension.spec!!)
   core.debug('after merged ' + JSON.stringify(podSpec))
+  podSpec.hostNetwork = true
+  podSpec.dnsPolicy = "ClusterFirstWithHostNet"
 
   return await k8sCustomApi.createNamespacedCustomObject({
     group: 'jobset.x-k8s.io',
