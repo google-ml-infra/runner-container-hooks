@@ -154,8 +154,6 @@ export async function createPodHelper(
   if (extension?.spec) {
     mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
-  //appPod.spec.containers.find(c => c.name === JOB_CONTAINER_NAME)!!.resources = {}
-  core.debug('app pod is now ' + JSON.stringify(appPod))
   return appPod
 }
 
