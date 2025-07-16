@@ -164,7 +164,8 @@ async function runScriptStepWithGRPC(
           core.debug(
             `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
           )
-          await runScriptByGrpc(
+          // Return instead of await so it won't block.
+          return runScriptByGrpc(
             scriptContent,
             rootCertClientAndKey.caCertAndkey.cert,
             rootCertClientAndKey.clientCertAndKey.cert,
