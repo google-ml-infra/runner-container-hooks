@@ -67,7 +67,7 @@ async function runScriptStepWithGRPC(
   const jobSetName = getJobSetName()
   core.info('checking if pvc exists ' + romPVC)
   if (await checkIfJobSetExist(jobSetName)) {
-    core.info('Found pvc' + romPVC)
+    core.info('jobset already exists ' + jobSetName)
   } else {
     // core.info('creating snapshot from ' + getVolumeClaimName())
     // await createRomPvcFromPvc(getVolumeClaimName(), romPVC)
@@ -75,10 +75,11 @@ async function runScriptStepWithGRPC(
     // await clonePVCReadOnlyManyFromExistingPVC(getVolumeClaimName(), romPVC)
 
     const extension = readExtensionFromFile()
-    core.info('extension is ' + extension)
+    core.info('extension is ' + JSON.stringify(extension))
+    core.info('extension container spec is ' + JSON.stringify(extension?.spec?.containers))
 
     core.info('creating job set ' + jobSetName)
-    await createJobSet(jobSetName, pod!!.spec!!, romPVC, extension!!)
+    await createJobSet(jobSetName, pod!!.spec!!)
 
     core.info('waiting for jobset pods to come online')
     await sleep(5000)

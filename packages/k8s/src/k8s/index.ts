@@ -154,7 +154,7 @@ export async function createPodHelper(
   if (extension?.spec) {
     mergePodSpecWithOptions(appPod.spec, extension.spec)
   }
-  appPod.spec.containers.find(c => c.name === JOB_CONTAINER_NAME)!!.resources = {}
+  //appPod.spec.containers.find(c => c.name === JOB_CONTAINER_NAME)!!.resources = {}
   core.debug('app pod is now ' + JSON.stringify(appPod))
   return appPod
 }
@@ -1142,8 +1142,6 @@ export async function getPodsFromJobSet(name): Promise<k8s.V1PodList> {
 export async function createJobSet(
   jobSetName: string,
   podSpec: k8s.V1PodSpec,
-  multiReadPVC: string,
-  extension: k8s.V1PodTemplateSpec
 ) {
   podSpec.nodeName = ''
   if (!podSpec.initContainers) {
@@ -1199,10 +1197,6 @@ export async function createJobSet(
       volumeMount => !volumeMount.mountPath.startsWith('/github/')
     )
   }
-  core.debug('before merged ' + JSON.stringify(podSpec))
-  core.debug('extension is ' + extension.spec!!)
-  mergePodSpecWithOptions(podSpec, extension.spec!!)
-  core.debug('after merged ' + JSON.stringify(podSpec))
 
   return await k8sCustomApi.createNamespacedCustomObject({
     group: 'jobset.x-k8s.io',

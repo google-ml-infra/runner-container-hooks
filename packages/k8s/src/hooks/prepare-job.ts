@@ -15,9 +15,9 @@ import {
   prunePods,
   waitForPodPhases,
   getPrepareJobTimeoutSeconds,
+  createJobSet,
   createPodHelper,
-  createK8sPod,
-  getJobSet
+  getPodsFromJobSet,
 } from '../k8s'
 import {
   containerVolumes,
@@ -30,10 +30,12 @@ import {
   fixArgs,
   useScriptExecutor,
   SCRIPT_EXECUTOR_ENTRY_POINT,
-  SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+  SCRIPT_EXECUTOR_ENTRY_POINT_ARGS,
+  sleep
 } from '../k8s/utils'
 import {
   CONTAINER_EXTENSION_PREFIX,
+  getJobSetName,
   getVolumeClaimName,
   JOB_CONTAINER_NAME
 } from './constants'
@@ -79,6 +81,59 @@ export async function prepareJob(
     throw new Error('No containers exist, skipping hook invocation')
   }
 
+  const pod = await createPodHelper(container,
+    services,
+    args.container.registry,
+    extension)
+  const jobSetName = getJobSetName()
+
+  await createJobSet(jobSetName, pod!!.spec!!)
+
+  core.info('waiting for jobset pods to come online')
+  await sleep(5000)
+  const pods = await getPodsFromJobSet(jobSetName)
+
+  let isAlpine = false
+  let createdPod: k8s.V1Pod
+  await Promise.all(
+    pods.items.map(async pod => {
+      try {
+        if (!createdPod) {
+          core.debug('assignined created pod')
+          createdPod = pod
+        }
+        core.debug(`waiting for pod ${pod.metadata?.name} to come online`)
+        await waitForPodPhases(
+          pod.metadata!!.name!!,
+          new Set([PodPhase.RUNNING]),
+          new Set([PodPhase.PENDING]),
+          getPrepareJobTimeoutSeconds()
+        )
+
+        try {
+          isAlpine = await isPodContainerAlpine(
+            pod.metadata!!.name!!,
+            JOB_CONTAINER_NAME
+          )
+        } catch (err) {
+          core.debug(
+            `Failed to determine if the pod is alpine: ${JSON.stringify(err)}`
+          )
+          const message = (err as any)?.response?.body?.message || err
+          throw new Error(`failed to determine if the pod is alpine: ${message}`)
+        }
+      } catch (err) {
+        await sleep(500000)
+        throw new Error(
+          `pod from job set failed to come online with error: ${err}`
+        )
+      }
+    })
+  )
+  core.info('pods from jobset are now online ' + JSON.stringify(createdPod!!))
+  generateResponseFile(responseFile, args, createdPod!!, isAlpine)
+
+  /*
   let createdPod: k8s.V1Pod | undefined = undefined
   try {
     createdPod = await createPod(
@@ -100,6 +155,7 @@ export async function prepareJob(
   core.debug(
     `Job pod created, waiting for it to come online ${createdPod?.metadata?.name}`
   )
+
 
   try {
     await waitForPodPhases(
@@ -130,6 +186,7 @@ export async function prepareJob(
   }
   core.debug(`Setting isAlpine to ${isAlpine}`)
   generateResponseFile(responseFile, args, createdPod, isAlpine)
+  */
 }
 
 function generateResponseFile(
