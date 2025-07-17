@@ -30,11 +30,10 @@ async function runScriptStepWithGRPC(
   )
 
   try {
-    const podName = state.jobPod
     core.info('using script executor')
 
     const serviceName = getServiceName()
-    core.debug('using service name ' + serviceName)
+    core.debug(`using service name ${serviceName}`)
 
     const rootCertClientAndKey = await getRootCertClientCertAndKey()
     core.debug('successfully retrieved root cert, client and key')

@@ -567,12 +567,11 @@ export async function prunePods(): Promise<void> {
 }
 
 export async function pruneServices(): Promise<void> {
-  core.debug(
-    'pruning services with labels ' + new RunnerInstanceLabel().toString()
-  )
+  const labelSelector = new RunnerInstanceLabel().toString()
+  core.debug(`pruning services with labels ${labelSelector}`)
   const serviceList = await k8sApi.listNamespacedService({
     namespace: namespace(),
-    labelSelector: new RunnerInstanceLabel().toString()
+    labelSelector
   })
   core.debug(`pruning ${serviceList.items.length} service(s)`)
   if (!serviceList.items.length) {
@@ -587,7 +586,7 @@ export async function pruneServices(): Promise<void> {
       )
     )
   } catch (error) {
-    core.debug('error pruning service ' + error)
+    core.debug(`error pruning service ${error}`)
   }
 }
 
