@@ -6,8 +6,10 @@ import {
   getJobPodName,
   getRunnerPodName,
   getSecretName,
+  getServiceName,
   getStepPodName,
   getVolumeClaimName,
+  GRPC_SCRIPT_EXECUTOR_PORT,
   RunnerInstanceLabel
 } from '../hooks/constants'
 import {
@@ -66,6 +68,30 @@ export const requiredPermissions = [
     subresource: ''
   }
 ]
+
+export async function createHeadlessService(): Promise<void> {
+  const instanceLabel = new RunnerInstanceLabel()
+  await k8sApi.createNamespacedService({
+    namespace: namespace(),
+    body: {
+      metadata: {
+        name: getServiceName()
+      },
+      spec: {
+        selector: {
+          [instanceLabel.key]: instanceLabel.value
+        },
+        ports: [
+          {
+            name: "grpc",
+            targetPort: GRPC_SCRIPT_EXECUTOR_PORT,
+            port: GRPC_SCRIPT_EXECUTOR_PORT
+          }
+        ]
+      }
+    }
+  })
+}
 
 export async function createPod(
   jobContainer?: k8s.V1Container,

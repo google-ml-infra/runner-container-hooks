@@ -11,7 +11,7 @@ import {
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
-import { GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
+import { getServiceName, GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
@@ -30,6 +30,8 @@ async function runScriptStepWithGRPC(
     const podName = state.jobPod
     core.info('using script executor')
 
+    const serviceName = getServiceName()
+    /*
     const status = await getPodStatus(podName)
     if (status?.phase === 'Succeeded') {
       throw new Error(`Failed to get pod ${podName} status`)
@@ -37,6 +39,8 @@ async function runScriptStepWithGRPC(
     if (status?.podIP === undefined) {
       throw new Error(`Failed to get pod ${podName} IP`)
     }
+      */
+    core.info('using service name ' + serviceName)
 
     const rootCertClientAndKey = await getRootCertClientCertAndKey()
     core.debug('successfully retrieved root cert, client and key')
@@ -45,7 +49,7 @@ async function runScriptStepWithGRPC(
       rootCertClientAndKey.caCertAndkey.cert,
       rootCertClientAndKey.clientCertAndKey.cert,
       rootCertClientAndKey.clientCertAndKey.privateKey,
-      status.podIP,
+      serviceName,
       GRPC_SCRIPT_EXECUTOR_PORT
     )
   } catch (err) {
