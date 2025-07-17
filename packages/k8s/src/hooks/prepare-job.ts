@@ -130,7 +130,7 @@ export async function prepareJob(
       }
     })
   )
-  core.info('pods from jobset are now online ' + JSON.stringify(createdPod!!))
+  core.info('pods from jobset are now online ')
   generateResponseFile(responseFile, args, createdPod!!, isAlpine)
 
   /*

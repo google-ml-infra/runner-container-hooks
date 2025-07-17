@@ -66,7 +66,7 @@ async function runScriptStepWithGRPC(
   const romPVC = getReadOnlyManyVolumeClaimName()
   const jobSetName = getJobSetName()
   if (await checkIfJobSetExist(jobSetName)) {
-    core.info('jobset already exists ' + jobSetName)
+    core.debug('jobset already exists ' + jobSetName)
   } else {
     // core.info('creating snapshot from ' + getVolumeClaimName())
     // await createRomPvcFromPvc(getVolumeClaimName(), romPVC)

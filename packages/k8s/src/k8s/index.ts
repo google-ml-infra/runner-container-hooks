@@ -1212,8 +1212,8 @@ export async function createJobSet(
             name: 'workers',
             template: {
               spec: {
-                parallelism: 2,
-                completions: 2,
+                parallelism: 4,
+                completions: 4,
                 backoffLimit: 0,
                 template: {
                   spec: podSpec
