@@ -75,7 +75,8 @@ export async function createHeadlessService(): Promise<void> {
     namespace: namespace(),
     body: {
       metadata: {
-        name: getServiceName()
+        name: getServiceName(),
+        labels: { [instanceLabel.key]: instanceLabel.value }
       },
       spec: {
         selector: {
@@ -566,12 +567,14 @@ export async function prunePods(): Promise<void> {
 }
 
 export async function pruneServices(): Promise<void> {
-  core.debug("pruning services")
+  core.debug(
+    'pruning services with labels ' + new RunnerInstanceLabel().toString()
+  )
   const serviceList = await k8sApi.listNamespacedService({
     namespace: namespace(),
     labelSelector: new RunnerInstanceLabel().toString()
   })
-  core.debug("service list " + JSON.stringify(serviceList.items))
+  core.debug(`pruning ${serviceList.items.length} service(s)`)
   if (!serviceList.items.length) {
     return
   }
@@ -579,11 +582,12 @@ export async function pruneServices(): Promise<void> {
   try {
     await Promise.all(
       serviceList.items.map(
-        service => service.metadata?.name && deleteService(service.metadata.name)
+        service =>
+          service.metadata?.name && deleteService(service.metadata.name)
       )
-    )  
+    )
   } catch (error) {
-    core.debug("error pruning service " + error)
+    core.debug('error pruning service ' + error)
   }
 }
 
