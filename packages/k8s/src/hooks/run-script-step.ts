@@ -3,9 +3,8 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { execPodStep, getPodStatus, getRootCertClientCertAndKey } from '../k8s'
+import { execPodStep, getRootCertClientCertAndKey } from '../k8s'
 import {
-  fixArgs,
   getEntryPointScriptContent,
   runScriptByGrpc,
   useScriptExecutor,
@@ -35,15 +34,6 @@ async function runScriptStepWithGRPC(
     core.info('using script executor')
 
     const serviceName = getServiceName()
-    /*
-    const status = await getPodStatus(podName)
-    if (status?.phase === 'Succeeded') {
-      throw new Error(`Failed to get pod ${podName} status`)
-    }
-    if (status?.podIP === undefined) {
-      throw new Error(`Failed to get pod ${podName} IP`)
-    }
-      */
     core.info('using service name ' + serviceName)
 
     const rootCertClientAndKey = await getRootCertClientCertAndKey()
