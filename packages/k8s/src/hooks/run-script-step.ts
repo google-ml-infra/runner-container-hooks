@@ -34,7 +34,7 @@ async function runScriptStepWithGRPC(
     core.info('using script executor')
 
     const serviceName = getServiceName()
-    core.info('using service name ' + serviceName)
+    core.debug('using service name ' + serviceName)
 
     const rootCertClientAndKey = await getRootCertClientCertAndKey()
     core.debug('successfully retrieved root cert, client and key')
