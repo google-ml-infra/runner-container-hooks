@@ -21,7 +21,7 @@ export function getServiceName(): string {
   return `${getRunnerPodName().substring(
     0,
     MAX_POD_NAME_LENGTH - '-service'.length
-  )}-service`  
+  )}-service`
 }
 
 export function getStepPodName(): string {

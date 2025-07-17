@@ -83,7 +83,7 @@ export async function createHeadlessService(): Promise<void> {
         },
         ports: [
           {
-            name: "grpc",
+            name: 'grpc',
             targetPort: GRPC_SCRIPT_EXECUTOR_PORT,
             port: GRPC_SCRIPT_EXECUTOR_PORT
           }
@@ -296,6 +296,14 @@ export async function getContainerJobPodName(jobName: string): Promise<string> {
 export async function deletePod(podName: string): Promise<void> {
   await k8sApi.deleteNamespacedPod({
     name: podName,
+    namespace: namespace(),
+    gracePeriodSeconds: 0
+  })
+}
+
+export async function deleteService(serviceName: string): Promise<void> {
+  await k8sApi.deleteNamespacedService({
+    name: serviceName,
     namespace: namespace(),
     gracePeriodSeconds: 0
   })
@@ -554,6 +562,22 @@ export async function prunePods(): Promise<void> {
 
   await Promise.all(
     podList.items.map(pod => pod.metadata?.name && deletePod(pod.metadata.name))
+  )
+}
+
+export async function pruneServices(): Promise<void> {
+  const serviceList = await k8sApi.listNamespacedService({
+    namespace: namespace(),
+    labelSelector: new RunnerInstanceLabel().toString()
+  })
+  if (!serviceList.items.length) {
+    return
+  }
+
+  await Promise.all(
+    serviceList.items.map(
+      service => service.metadata?.name && deleteService(service.metadata.name)
+    )
   )
 }
 

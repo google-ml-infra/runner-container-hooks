@@ -11,7 +11,11 @@ import {
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
-import { getServiceName, GRPC_SCRIPT_EXECUTOR_PORT, JOB_CONTAINER_NAME } from './constants'
+import {
+  getServiceName,
+  GRPC_SCRIPT_EXECUTOR_PORT,
+  JOB_CONTAINER_NAME
+} from './constants'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
