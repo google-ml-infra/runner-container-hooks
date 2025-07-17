@@ -566,19 +566,25 @@ export async function prunePods(): Promise<void> {
 }
 
 export async function pruneServices(): Promise<void> {
+  core.debug("pruning services")
   const serviceList = await k8sApi.listNamespacedService({
     namespace: namespace(),
     labelSelector: new RunnerInstanceLabel().toString()
   })
+  core.debug("service list " + JSON.stringify(serviceList.items))
   if (!serviceList.items.length) {
     return
   }
 
-  await Promise.all(
-    serviceList.items.map(
-      service => service.metadata?.name && deleteService(service.metadata.name)
-    )
-  )
+  try {
+    await Promise.all(
+      serviceList.items.map(
+        service => service.metadata?.name && deleteService(service.metadata.name)
+      )
+    )  
+  } catch (error) {
+    core.debug("error pruning service " + error)
+  }
 }
 
 export async function getPodStatus(
