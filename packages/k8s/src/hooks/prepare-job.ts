@@ -127,15 +127,8 @@ export async function prepareJob(
   core.debug(`Setting isAlpine to ${isAlpine}`)
 
   if (useScriptExecutor()) {
-    const podStatus = await getPodStatus(createdPod.metadata.name)
-    core.debug('pod status ' + JSON.stringify(podStatus))
     core.debug(`Creating headless service`)
     await createHeadlessService()
-    const service = await getHeadlessService()
-    core.debug('headless service ' + JSON.stringify(service))
-    const anotherPodStatus = await getPodStatus(createdPod.metadata.name)
-    core.debug('pod status ' + JSON.stringify(anotherPodStatus))
-    // Wait for headless service to become available.
   }
 
   generateResponseFile(responseFile, args, createdPod, isAlpine)
