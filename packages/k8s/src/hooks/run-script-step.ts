@@ -30,14 +30,10 @@ async function runScriptStepWithGRPC(
     environmentVariables
   )
 
+  core.info('using script executor')
+
   let rootCertClientAndKey: MTLSCertAndPrivateKey;
-  let serviceName: string;
-  try {
-    core.info('using script executor')
-
-    serviceName = getServiceName()
-    core.debug(`using service name ${serviceName}`)
-
+  try {    
     rootCertClientAndKey = await getRootCertClientCertAndKey()
     core.debug('successfully retrieved root cert, client and key')
   } catch (err) {
@@ -54,15 +50,15 @@ async function runScriptStepWithGRPC(
         rootCertClientAndKey.caCertAndkey.cert,
         rootCertClientAndKey.clientCertAndKey.cert,
         rootCertClientAndKey.clientCertAndKey.privateKey,
-        serviceName,
+        getServiceName(),
         GRPC_SCRIPT_EXECUTOR_PORT
       )
       break;
     } catch (err) {
-      core.error(`ScriptExecutorError when trying to get cert: ${JSON.stringify(err)}`)
+      core.error(`ScriptExecutorError when trying to execute: ${JSON.stringify(err)}`)
       const message = (err as any)?.response?.body?.message || err
       if (String(message).includes("ECONNREFUSED")) {
-        core.debug('quoct ECONNREFUSED')
+        // Retry for 60s since the service may not be established.
         await backOffmanager.backOff()
       } else {
         break;
