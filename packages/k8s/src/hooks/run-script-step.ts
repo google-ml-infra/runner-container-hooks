@@ -57,6 +57,7 @@ async function runScriptStepWithGRPC(
       const message = (err as any)?.response?.body?.message || err
       if (String(message).includes('ECONNREFUSED')) {
         // Retry for 60s since the service may not be established.
+        core.debug(`Retrying execution for ECONNREFUSED.`)
         await backOffmanager.backOff()
       } else {
         break
