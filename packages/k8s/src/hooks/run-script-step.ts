@@ -19,7 +19,6 @@ import {
   GRPC_SCRIPT_EXECUTOR_PORT,
   JOB_CONTAINER_NAME
 } from './constants'
-import { MTLSCertAndPrivateKey } from 'src/k8s/certs'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
@@ -35,18 +34,8 @@ async function runScriptStepWithGRPC(
   )
 
   core.info('using script executor')
-
-  let rootCertClientAndKey: MTLSCertAndPrivateKey
-  try {
-    rootCertClientAndKey = await getRootCertClientCertAndKey()
-    core.debug('successfully retrieved root cert, client and key')
-  } catch (err) {
-    core.error(
-      `ScriptExecutorError when trying to get cert: ${JSON.stringify(err)}`
-    )
-    const message = (err as any)?.response?.body?.message || err
-    throw new Error(`failed to get script cert: ${message}`)
-  }
+  const rootCertClientAndKey = await getRootCertClientCertAndKey()
+  core.debug('successfully retrieved root cert, client and key')
 
   const backOffmanager = new BackOffManager(60)
   while (true) {
