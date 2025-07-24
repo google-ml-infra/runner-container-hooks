@@ -94,9 +94,9 @@ export async function createHeadlessService(): Promise<void> {
   })
 }
 
-export async function getHeadlessService(): Promise<void> {
+export async function getHeadlessService(): Promise<k8s.V1Service> {
   const serviceName = getServiceName()
-  await k8sApi.readNamespacedService({
+  return await k8sApi.readNamespacedService({
     namespace: namespace(),
     name: serviceName
   })
