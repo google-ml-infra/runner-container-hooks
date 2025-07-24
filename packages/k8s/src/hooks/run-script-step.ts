@@ -3,7 +3,11 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { BackOffManager, execPodStep, getRootCertClientCertAndKey } from '../k8s'
+import {
+  BackOffManager,
+  execPodStep,
+  getRootCertClientCertAndKey
+} from '../k8s'
 import {
   getEntryPointScriptContent,
   runScriptByGrpc,
@@ -32,12 +36,14 @@ async function runScriptStepWithGRPC(
 
   core.info('using script executor')
 
-  let rootCertClientAndKey: MTLSCertAndPrivateKey;
-  try {    
+  let rootCertClientAndKey: MTLSCertAndPrivateKey
+  try {
     rootCertClientAndKey = await getRootCertClientCertAndKey()
     core.debug('successfully retrieved root cert, client and key')
   } catch (err) {
-    core.error(`ScriptExecutorError when trying to get cert: ${JSON.stringify(err)}`)
+    core.error(
+      `ScriptExecutorError when trying to get cert: ${JSON.stringify(err)}`
+    )
     const message = (err as any)?.response?.body?.message || err
     throw new Error(`failed to get script cert: ${message}`)
   }
@@ -53,15 +59,17 @@ async function runScriptStepWithGRPC(
         getServiceName(),
         GRPC_SCRIPT_EXECUTOR_PORT
       )
-      break;
+      break
     } catch (err) {
-      core.error(`ScriptExecutorError when trying to execute: ${JSON.stringify(err)}`)
+      core.error(
+        `ScriptExecutorError when trying to execute: ${JSON.stringify(err)}`
+      )
       const message = (err as any)?.response?.body?.message || err
-      if (String(message).includes("ECONNREFUSED")) {
+      if (String(message).includes('ECONNREFUSED')) {
         // Retry for 60s since the service may not be established.
         await backOffmanager.backOff()
       } else {
-        break;
+        break
       }
     }
   }

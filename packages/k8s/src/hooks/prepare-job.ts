@@ -15,9 +15,7 @@ import {
   prunePods,
   waitForPodPhases,
   getPrepareJobTimeoutSeconds,
-  createHeadlessService,
-  getPodStatus,
-  getHeadlessService
+  createHeadlessService
 } from '../k8s'
 import {
   containerVolumes,
