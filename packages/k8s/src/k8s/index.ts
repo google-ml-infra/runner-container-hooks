@@ -94,6 +94,14 @@ export async function createHeadlessService(): Promise<void> {
   })
 }
 
+export async function getHeadlessService(): Promise<void> {
+  const serviceName = getServiceName()
+  await k8sApi.readNamespacedService({
+    namespace: namespace(),
+    name: serviceName
+  })
+}
+
 export async function createPod(
   jobContainer?: k8s.V1Container,
   services?: k8s.V1Container[],
