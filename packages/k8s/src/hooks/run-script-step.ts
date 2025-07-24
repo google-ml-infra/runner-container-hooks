@@ -37,6 +37,7 @@ async function runScriptStepWithGRPC(
   const rootCertClientAndKey = await getRootCertClientCertAndKey()
   core.debug('successfully retrieved root cert, client and key')
 
+  // This will throw after retrying with back off for up to 60s.
   const backOffmanager = new BackOffManager(60)
   while (true) {
     try {
@@ -50,7 +51,7 @@ async function runScriptStepWithGRPC(
       )
       break
     } catch (err) {
-      core.error(
+      core.debug(
         `ScriptExecutorError when trying to execute: ${JSON.stringify(err)}`
       )
       const message = (err as any)?.response?.body?.message || err
