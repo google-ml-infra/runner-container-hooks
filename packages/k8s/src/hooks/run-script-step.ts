@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as core from '@actions/core'
 
 import { RunScriptStepArgs } from 'hooklib'
-import { execPodStep, getRootCertClientCertAndKey } from '../k8s'
+import { BackOffManager, execPodStep, getRootCertClientCertAndKey } from '../k8s'
 import {
   getEntryPointScriptContent,
   runScriptByGrpc,
@@ -15,6 +15,7 @@ import {
   GRPC_SCRIPT_EXECUTOR_PORT,
   JOB_CONTAINER_NAME
 } from './constants'
+import { MTLSCertAndPrivateKey } from 'src/k8s/certs'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
@@ -29,26 +30,44 @@ async function runScriptStepWithGRPC(
     environmentVariables
   )
 
+  let rootCertClientAndKey: MTLSCertAndPrivateKey;
+  let serviceName: string;
   try {
     core.info('using script executor')
 
-    const serviceName = getServiceName()
+    serviceName = getServiceName()
     core.debug(`using service name ${serviceName}`)
 
-    const rootCertClientAndKey = await getRootCertClientCertAndKey()
+    rootCertClientAndKey = await getRootCertClientCertAndKey()
     core.debug('successfully retrieved root cert, client and key')
-    await runScriptByGrpc(
-      scriptContent,
-      rootCertClientAndKey.caCertAndkey.cert,
-      rootCertClientAndKey.clientCertAndKey.cert,
-      rootCertClientAndKey.clientCertAndKey.privateKey,
-      serviceName,
-      GRPC_SCRIPT_EXECUTOR_PORT
-    )
   } catch (err) {
-    core.error(`ScriptExecutorError failure: ${JSON.stringify(err)}`)
+    core.error(`ScriptExecutorError when trying to get cert: ${JSON.stringify(err)}`)
     const message = (err as any)?.response?.body?.message || err
-    throw new Error(`failed to run script step: ${message}`)
+    throw new Error(`failed to get script cert: ${message}`)
+  }
+
+  const backOffmanager = new BackOffManager(60)
+  while (true) {
+    try {
+      await runScriptByGrpc(
+        scriptContent,
+        rootCertClientAndKey.caCertAndkey.cert,
+        rootCertClientAndKey.clientCertAndKey.cert,
+        rootCertClientAndKey.clientCertAndKey.privateKey,
+        serviceName,
+        GRPC_SCRIPT_EXECUTOR_PORT
+      )
+      break;
+    } catch (err) {
+      core.error(`ScriptExecutorError when trying to get cert: ${JSON.stringify(err)}`)
+      const message = (err as any)?.response?.body?.message || err
+      if (String(message).includes("ECONNREFUSED")) {
+        core.debug('quoct ECONNREFUSED')
+        await backOffmanager.backOff()
+      } else {
+        break;
+      }
+    }
   }
 }
 
