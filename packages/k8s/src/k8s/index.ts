@@ -6,13 +6,10 @@ import * as tar from 'tar-fs'
 import { WritableStreamBuffer } from 'stream-buffers'
 import {
   getJobPodName,
-  getReadOnlyManyVolumeClaimName,
   getRunnerPodName,
   getSecretName,
-  getSnapshotName,
   getStepPodName,
   getVolumeClaimName,
-  JOB_CONTAINER_EXTENSION_NAME,
   JOB_CONTAINER_NAME,
   RunnerInstanceLabel
 } from '../hooks/constants'
@@ -384,121 +381,6 @@ export async function waitForSnapshot(name: string): Promise<void> {
   }
 }
 
-export async function createRomPvcFromPvc(
-  existingPVC: string,
-  romPVC: string
-): Promise<void> {
-  const snapshotName = getSnapshotName()
-  // TODO(quoct): Add labels so we can do clean up
-  core.debug(`Creating snapshot ${snapshotName}`)
-  await createSnapshot(existingPVC, snapshotName)
-
-  core.debug(`Wait for snapshot to get ready`)
-  await waitForSnapshot(snapshotName)
-
-  core.debug(`Snapshot is ready`)
-  const existingClaim = await k8sApi.readNamespacedPersistentVolumeClaim({
-    namespace: namespace(),
-    name: existingPVC
-  })
-  core.debug(`Creating ReadOnlyMany PVC ${romPVC}`)
-  await k8sApi.createNamespacedPersistentVolumeClaim({
-    namespace: namespace(),
-    body: {
-      metadata: {
-        name: romPVC,
-        namespace: namespace()
-      },
-      spec: {
-        storageClassName: existingClaim.spec?.storageClassName,
-        dataSource: {
-          name: snapshotName,
-          kind: 'VolumeSnapshot',
-          apiGroup: 'snapshot.storage.k8s.io'
-        },
-        accessModes: ['ReadOnlyMany'],
-        resources: {
-          requests: {
-            storage: existingClaim.spec?.resources?.requests?.storage || '500Gi'
-          }
-        }
-      }
-    }
-  })
-}
-
-export async function clonePVCReadOnlyManyFromExistingPVC(
-  existingPVC: string,
-  romPVC: string
-): Promise<void> {
-  const claim = await k8sApi.readNamespacedPersistentVolumeClaim({
-    namespace: namespace(),
-    name: existingPVC
-  })
-  core.debug(
-    `Creating readonly many PV from PV ${JSON.stringify(
-      claim.spec?.volumeName
-    )}`
-  )
-  if (!claim.spec?.volumeName) {
-    throw new Error('Cannot get volume name from spec')
-  }
-  const existingPV = await k8sApi.readPersistentVolume({
-    name: claim.spec?.volumeName!!
-  })
-  if (!existingPV.spec?.csi?.volumeHandle) {
-    throw new Error('Only support for CSI driver at the moment')
-  }
-
-  const newPVName = `pv-${uuidv4().substring(0, 20)}`
-  core.debug(`Creating pv ${newPVName}`)
-  const pv = await k8sApi.createPersistentVolume({
-    body: {
-      metadata: {
-        name: newPVName
-      },
-      spec: {
-        storageClassName: existingPV.spec.storageClassName,
-        persistentVolumeReclaimPolicy: 'Delete',
-        capacity: existingPV.spec.capacity,
-        accessModes: ['ReadOnlyMany'],
-        claimRef: {
-          namespace: namespace(),
-          name: romPVC
-        },
-        csi: {
-          driver: existingPV.spec.csi.driver,
-          volumeHandle: existingPV.spec.csi.volumeHandle,
-          fsType: existingPV.spec.csi.fsType,
-          readOnly: true
-        }
-      }
-    }
-  })
-  core.debug(`created pv ${JSON.stringify(pv)}`)
-
-  core.debug(`Creating volume claim`)
-  await k8sApi.createNamespacedPersistentVolumeClaim({
-    namespace: namespace(),
-    body: {
-      metadata: {
-        name: romPVC,
-        namespace: namespace()
-      },
-      spec: {
-        storageClassName: claim.spec?.storageClassName,
-        volumeName: newPVName,
-        accessModes: ['ReadOnlyMany'],
-        resources: {
-          requests: {
-            storage: claim.spec?.resources?.requests?.storage || '500Gi'
-          }
-        }
-      }
-    }
-  })
-}
-
 export async function execPodStep(
   command: string[],
   podName: string,
@@ -751,11 +633,21 @@ export async function prunePods(): Promise<void> {
   }
 
   core.debug('skipping pod deletion')
-  /*
   await Promise.all(
     podList.items.map(pod => pod.metadata?.name && deletePod(pod.metadata.name))
   )
-    */
+}
+
+export async function pruneJobSet(jobSetName: string): Promise<void> {
+  core.info(`deleting job set ${jobSetName}`)
+  await k8sCustomApi.deleteNamespacedCustomObject({
+    group: 'jobset.x-k8s.io',
+    version: 'v1alpha2',
+    namespace: namespace(),
+    plural: 'jobsets',
+    name: jobSetName,
+  })
+  core.info(`deleted job set ${jobSetName}`)
 }
 
 export async function getPod(name: string): Promise<k8s.V1Pod | undefined> {
@@ -1061,16 +953,6 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
     clientCertAndKey: { cert: clientCert, privateKey: clientKey }
   }
   return clientCertDicts[certDictKey]
-}
-
-export async function getJobSet(name) {
-  return await k8sCustomApi.getNamespacedCustomObject({
-    group: 'jobset.x-k8s.io',
-    version: 'v1alpha2',
-    namespace: namespace(),
-    plural: 'jobsets',
-    name
-  })
 }
 
 export async function cpToPod(

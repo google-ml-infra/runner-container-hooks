@@ -7,15 +7,9 @@ import {
   checkIfJobSetExist,
   cpToPod,
   createJobSet,
-  createK8sPod,
-  createPod,
-  createRomPvcFromPvc,
   execPodStep,
-  getJobSet,
   getPod,
-  getPodPhase,
   getPodsFromJobSet,
-  getPodStatus,
   getPrepareJobTimeoutSeconds,
   getRootCertClientCertAndKey,
   waitForPodPhases
@@ -32,9 +26,6 @@ import {
 } from '../k8s/utils'
 import {
   getJobSetName,
-  getReadOnlyManyVolumeClaimName,
-  getSnapshotName,
-  getVolumeClaimName,
   GRPC_SCRIPT_EXECUTOR_PORT,
   JOB_CONTAINER_NAME
 } from './constants'
@@ -63,7 +54,6 @@ async function runScriptStepWithGRPC(
     throw new Error(`Failed to get pod ${podName} IP`)
   }
 
-  const romPVC = getReadOnlyManyVolumeClaimName()
   const jobSetName = getJobSetName()
   if (await checkIfJobSetExist(jobSetName)) {
     core.debug('jobset already exists ' + jobSetName)
