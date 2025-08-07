@@ -201,13 +201,13 @@ describe('jobset', () => {
       await testHelper.createJobSet(jobSetName)
       await expect(jobSetExists(jobSetName)).resolves.toBeTruthy()
     } finally {
-      pruneJobSet(jobSetName)
+      await pruneJobSet(jobSetName)
     }
   })
 
   it('pruneJobSet works', async () => {
     testHelper = new TestHelper()
-    const jobSetName = 'foo'
+    const jobSetName = 'bar'
     await testHelper.createJobSet(jobSetName)
     await expect(jobSetExists(jobSetName)).resolves.toBeTruthy()
     await expect(pruneJobSet(jobSetName)).resolves.not.toThrow()
