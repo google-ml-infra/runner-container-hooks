@@ -932,7 +932,7 @@ export async function cpToPod(
           }
         )
       } catch (error) {
-        const message = (error as any)?.response?.body?.message || error
+        const message = extractErrorMessageFromK8sError(error)
         core.debug(
           `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${message}`
         )
@@ -942,9 +942,11 @@ export async function cpToPod(
     core.debug('finished copying')
   } catch (error) {
     core.debug(
-      `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(
-        error
-      )}`
+      `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${error})}`
     )
   }
+}
+
+export function extractErrorMessageFromK8sError(error: unknown): string {
+  return String((error as any)?.response?.body?.message || error)
 }
