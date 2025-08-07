@@ -9,7 +9,7 @@ import { TestHelper } from './test-setup'
 import * as k8s from '@kubernetes/client-node'
 import { generateCerts } from '../src/k8s/certs'
 import { ChildProcess, exec, execSync } from 'child_process'
-import { runScriptByGrpc } from '../src/k8s/utils'
+import { ENV_NUMBER_OF_HOSTS, runScriptByGrpc } from '../src/k8s/utils'
 import { MTLSCertAndPrivateKey } from '../src/k8s/certs'
 import process from 'process'
 import { cpToPod, jobSetExists, pruneJobSet } from '../src/k8s'
@@ -210,7 +210,12 @@ describe('jobset', () => {
     const jobSetName = 'bar'
     await testHelper.createJobSet(jobSetName)
     await expect(jobSetExists(jobSetName)).resolves.toBeTruthy()
-    await expect(pruneJobSet(jobSetName)).resolves.not.toThrow()
+    try {
+      process.env[ENV_NUMBER_OF_HOSTS] = '2'
+      await expect(pruneJobSet(jobSetName)).resolves.not.toThrow()
+    } finally {
+      delete process.env[ENV_NUMBER_OF_HOSTS]
+    }
     await expect(jobSetExists(jobSetName)).resolves.toBeFalsy()
   })
 })
