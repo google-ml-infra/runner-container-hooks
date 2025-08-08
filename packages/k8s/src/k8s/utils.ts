@@ -162,8 +162,9 @@ export function getEntryPointScriptContent(
   const content = `#!/bin/sh -l
 ${exportPath}
 cd ${workingDirectory} && \
-exec ${environmentPrefix} ${entryPoint} ${entryPointArgs?.length ? entryPointArgs.join(' ') : ''
-    }
+exec ${environmentPrefix} ${entryPoint} ${
+    entryPointArgs?.length ? entryPointArgs.join(' ') : ''
+  }
 `
   return content
 }
@@ -305,7 +306,9 @@ export function useKubeScheduler(): boolean {
 }
 
 export function useScriptExecutor(): boolean {
-  return process.env[ENV_USE_SCRIPT_EXECUTOR] === 'true' || getNumberOfHost() > 1
+  return (
+    process.env[ENV_USE_SCRIPT_EXECUTOR] === 'true' || getNumberOfHost() > 1
+  )
 }
 
 export function getNumberOfHost(): number {
