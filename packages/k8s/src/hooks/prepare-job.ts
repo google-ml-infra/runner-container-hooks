@@ -84,13 +84,7 @@ export async function prepareJob(
   }
 
   if (getNumberOfHost() > 1) {
-    return await prepareJobSet(
-      args,
-      responseFile,
-      JobContainerInfo,
-      services,
-      extension
-    )
+    return await prepareJobSet(args, responseFile, container, extension)
   }
 
   let createdPod: k8s.V1Pod | undefined = undefined
@@ -157,14 +151,13 @@ async function prepareJobSet(
   args: PrepareJobArgs,
   responseFile,
   jobContainer?: k8s.V1Container,
-  services?: k8s.V1Container[],
   extension?: k8s.V1PodTemplateSpec
 ): Promise<void> {
   console.log('quoct creating jobset')
   const jobSetName = getJobSetName()
   const noOfHosts = getNumberOfHost()
 
-  const podSpec = await createPodSpec(jobContainer, services, null, extension)
+  const podSpec = await createPodSpec(jobContainer, [], null, extension)
   core.info(`creating JobSet ${jobSetName} for ${noOfHosts} hosts.`)
   await createJobSet(jobSetName, podSpec, noOfHosts)
 
