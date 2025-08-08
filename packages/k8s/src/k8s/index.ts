@@ -981,7 +981,7 @@ export async function pruneJobSet(jobSetName: string): Promise<void> {
   }
 
   core.debug(`deleting job set ${jobSetName}`)
-  deleteJobSet(jobSetName)
+  await deleteJobSet(jobSetName)
   core.debug(`deleted job set ${jobSetName}`)
 }
 
