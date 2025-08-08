@@ -44,6 +44,7 @@ describe('Prepare job', () => {
   it('should not throw exception for JobSet', async () => {
     process.env[ENV_NUMBER_OF_HOSTS] = '2'
     try {
+      prepareJobData.args.services = []
       await expect(
         prepareJob(prepareJobData.args, prepareJobOutputFilePath)
       ).resolves.not.toThrow()
