@@ -199,12 +199,13 @@ async function prepareJobSet(
     })
   )
 
+  console.log(`created pod is ${createdPod}`)
   if (!createdPod) {
     throw new Error(
       `failed to retrieve a pod from JobSet ${jobSetName} for ${noOfHosts} hosts.`
     )
   }
-
+  console.log(`JSON version of pod is ${JSON.stringify(createdPod)}`)
   try {
     isAlpine = await isPodContainerAlpine(
       (createdPod as k8s.V1Pod).metadata!!.name!!,
