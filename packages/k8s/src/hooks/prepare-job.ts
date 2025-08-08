@@ -153,7 +153,6 @@ async function prepareJobSet(
   jobContainer?: k8s.V1Container,
   extension?: k8s.V1PodTemplateSpec
 ): Promise<void> {
-  console.log('quoct creating jobset')
   const jobSetName = getJobSetName()
   const noOfHosts = getNumberOfHost()
 
@@ -164,7 +163,6 @@ async function prepareJobSet(
   core.info('waiting for pods from JobSet to come online')
   await sleep(5_000)
   const pods = await getPodsFromJobSet(jobSetName)
-  console.log(`pods are ${JSON.stringify(pods.items)}`)
 
   let isAlpine = false
   let createdPod: k8s.V1Pod | undefined = undefined
@@ -174,9 +172,6 @@ async function prepareJobSet(
         if (!createdPod) {
           createdPod = pod
         }
-        console.log(
-          `quoct waiting for pod ${pod.metadata?.name} to come online`
-        )
         core.debug(`waiting for pod ${pod.metadata?.name} to come online`)
         await waitForPodPhases(
           pod.metadata!!.name!!,
@@ -192,13 +187,11 @@ async function prepareJobSet(
     })
   )
 
-  console.log(`created pod is ${createdPod}`)
   if (!createdPod) {
     throw new Error(
       `failed to retrieve a pod from JobSet ${jobSetName} for ${noOfHosts} hosts.`
     )
   }
-  console.log(`JSON version of pod is ${JSON.stringify(createdPod)}`)
   try {
     isAlpine = await isPodContainerAlpine(
       (createdPod as k8s.V1Pod).metadata!!.name!!,
