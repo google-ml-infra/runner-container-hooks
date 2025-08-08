@@ -43,13 +43,17 @@ describe('Prepare job', () => {
 
   it('should not throw exception for JobSet', async () => {
     process.env[ENV_NUMBER_OF_HOSTS] = '2'
+    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = 'tail'
+    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = '-f /dev/null'
     try {
       prepareJobData.args.services = []
       await expect(
         prepareJob(prepareJobData.args, prepareJobOutputFilePath)
       ).resolves.not.toThrow()
     } finally {
-      delete process.env[ENV_NUMBER_OF_HOSTS]
+      process.env[ENV_NUMBER_OF_HOSTS] = ''
+      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = ''
+      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = ''
     }
   })
 
