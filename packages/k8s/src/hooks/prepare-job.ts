@@ -171,6 +171,7 @@ async function prepareJobSet(
   core.info('waiting for pods from JobSet to come online')
   await sleep(5_000)
   const pods = await getPodsFromJobSet(jobSetName)
+  console.log(`pods are ${JSON.stringify(pods.items)}`)
 
   let isAlpine = false
   let createdPod: k8s.V1Pod | undefined = undefined
@@ -180,6 +181,9 @@ async function prepareJobSet(
         if (!createdPod) {
           createdPod = pod
         }
+        console.log(
+          `quoct waiting for pod ${pod.metadata?.name} to come online`
+        )
         core.debug(`waiting for pod ${pod.metadata?.name} to come online`)
         await waitForPodPhases(
           pod.metadata!!.name!!,
