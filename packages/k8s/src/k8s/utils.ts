@@ -15,7 +15,7 @@ import { script_executor } from './script_executor'
 export const DEFAULT_CONTAINER_ENTRY_POINT_ARGS = [`-f`, `/dev/null`]
 export const DEFAULT_CONTAINER_ENTRY_POINT = 'tail'
 
-export const SCRIPT_EXECUTOR_ENTRY_POINT = '/__e/node20/bin/node'
+export const SCRIPT_EXECUTOR_ENTRY_POINT = '/__w/externals/node20/bin/node'
 export const SCRIPT_EXECUTOR_ENTRY_POINT_ARGS = [
   '/script_executor/dist/index.js'
 ]
@@ -162,9 +162,8 @@ export function getEntryPointScriptContent(
   const content = `#!/bin/sh -l
 ${exportPath}
 cd ${workingDirectory} && \
-exec ${environmentPrefix} ${entryPoint} ${
-    entryPointArgs?.length ? entryPointArgs.join(' ') : ''
-  }
+exec ${environmentPrefix} ${entryPoint} ${entryPointArgs?.length ? entryPointArgs.join(' ') : ''
+    }
 `
   return content
 }
@@ -306,7 +305,7 @@ export function useKubeScheduler(): boolean {
 }
 
 export function useScriptExecutor(): boolean {
-  return process.env[ENV_USE_SCRIPT_EXECUTOR] === 'true'
+  return process.env[ENV_USE_SCRIPT_EXECUTOR] === 'true' || getNumberOfHost() > 1
 }
 
 export function getNumberOfHost(): number {

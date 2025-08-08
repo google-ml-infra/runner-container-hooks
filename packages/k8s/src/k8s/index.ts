@@ -529,7 +529,7 @@ async function getPodPhase(podName: string): Promise<PodPhase> {
     name: podName,
     namespace: namespace()
   })
-  console.log(`pod status ${pod.status}`)
+  console.log(`pod status ${JSON.stringify(pod.status)}`)
   if (!pod.status?.phase || !podPhaseLookup.has(pod.status.phase)) {
     return PodPhase.UNKNOWN
   }
