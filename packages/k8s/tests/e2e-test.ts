@@ -268,7 +268,6 @@ describe('jobset', () => {
       await expect(jobSetExists(jobSetName)).resolves.toBeTruthy()
 
       const jobSetPods = await getPodsFromJobSet(jobSetName)
-      console.log(jobSetPods.items[0])
       expect(jobSetPods.items[0].spec?.initContainers).toBeTruthy()
       expect(jobSetPods.items[0].spec?.initContainers!![0].image).toBe(
         'ghcr.io/actions/actions-runner:latest'
