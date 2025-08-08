@@ -15,6 +15,7 @@ import process from 'process'
 import {
   cpToPod,
   createJobSet,
+  deleteJobSet,
   getPodsFromJobSet,
   jobSetExists,
   pruneJobSet
@@ -211,7 +212,7 @@ describe('jobset', () => {
     }
   })
 
-  it('pruneJobSet works', async () => {
+  it('pruneJobSet works when there are more than 1 host', async () => {
     testHelper = new TestHelper()
     const jobSetName = 'bar'
     await testHelper.createJobSet(jobSetName)
@@ -246,12 +247,12 @@ describe('jobset', () => {
       expect(jobSetPods.items[0].spec?.containers[0].name).toBe('nginx')
       expect(jobSetPods.items[0].spec?.containers[0].image).toBe('nginx:latest')
     } finally {
-      await pruneJobSet(jobSetName)
+      await deleteJobSet(jobSetName)
     }
   })
 
   it('createJobSet added an initContainer to the jobset', async () => {
-    const jobSetName = 'test-jobset'
+    const jobSetName = 'test-jobset2'
     const podSpec: k8s.V1PodSpec = {
       restartPolicy: 'Never',
       containers: [
@@ -272,7 +273,7 @@ describe('jobset', () => {
         'ghcr.io/actions/actions-runner:latest'
       )
     } finally {
-      await pruneJobSet(jobSetName)
+      await deleteJobSet(jobSetName)
     }
   })
 })

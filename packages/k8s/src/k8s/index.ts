@@ -965,12 +965,7 @@ export function extractErrorMessageFromK8sError(error: unknown): string {
   return String((error as any)?.response?.body?.message || error)
 }
 
-export async function pruneJobSet(jobSetName: string): Promise<void> {
-  if (getNumberOfHost() === 1 || !(await jobSetExists(jobSetName))) {
-    return
-  }
-
-  core.debug(`deleting job set ${jobSetName}`)
+export async function deleteJobSet(jobSetName: string): Promise<void> {
   await k8sCustomApi.deleteNamespacedCustomObject({
     group: 'jobset.x-k8s.io',
     version: 'v1alpha2',
@@ -978,6 +973,15 @@ export async function pruneJobSet(jobSetName: string): Promise<void> {
     plural: 'jobsets',
     name: jobSetName
   })
+}
+
+export async function pruneJobSet(jobSetName: string): Promise<void> {
+  if (getNumberOfHost() === 1 || !(await jobSetExists(jobSetName))) {
+    return
+  }
+
+  core.debug(`deleting job set ${jobSetName}`)
+  deleteJobSet(jobSetName)
   core.debug(`deleted job set ${jobSetName}`)
 }
 
