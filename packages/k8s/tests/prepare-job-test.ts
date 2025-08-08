@@ -5,6 +5,7 @@ import { createContainerSpec, prepareJob } from '../src/hooks/prepare-job'
 import { TestHelper } from './test-setup'
 import {
   ENV_HOOK_TEMPLATE_PATH,
+  ENV_NUMBER_OF_HOSTS,
   ENV_USE_KUBE_SCHEDULER,
   generateContainerName,
   readExtensionFromFile
@@ -38,6 +39,17 @@ describe('Prepare job', () => {
     await expect(
       prepareJob(prepareJobData.args, prepareJobOutputFilePath)
     ).resolves.not.toThrow()
+  })
+
+  it('should not throw exception for JobSet', async () => {
+    process.env[ENV_NUMBER_OF_HOSTS] = '2'
+    try {
+      await expect(
+        prepareJob(prepareJobData.args, prepareJobOutputFilePath)
+      ).resolves.not.toThrow()
+    } finally {
+      delete process.env[ENV_NUMBER_OF_HOSTS]
+    }
   })
 
   it('should generate output file in JSON format', async () => {
