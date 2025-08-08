@@ -43,8 +43,8 @@ describe('Prepare job', () => {
 
   it('should not throw exception for JobSet', async () => {
     process.env[ENV_NUMBER_OF_HOSTS] = '2'
-    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = 'tail'
-    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = '-f /dev/null'
+    //    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = 'tail'
+    //    process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = '-f /dev/null'
     try {
       prepareJobData.args.services = []
       prepareJobData.args.container.portMappings = []
@@ -53,8 +53,8 @@ describe('Prepare job', () => {
       ).resolves.not.toThrow()
     } finally {
       process.env[ENV_NUMBER_OF_HOSTS] = ''
-      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = ''
-      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = ''
+      //      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] = ''
+      //      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = ''
     }
   })
 
