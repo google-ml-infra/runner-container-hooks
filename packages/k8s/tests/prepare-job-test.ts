@@ -47,6 +47,7 @@ describe('Prepare job', () => {
     process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'] = '-f /dev/null'
     try {
       prepareJobData.args.services = []
+      prepareJobData.args.container.portMappings = []
       await expect(
         prepareJob(prepareJobData.args, prepareJobOutputFilePath)
       ).resolves.not.toThrow()
