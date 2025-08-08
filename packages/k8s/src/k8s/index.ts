@@ -1014,7 +1014,7 @@ export async function createJobSet(
   jobSetName: string,
   podSpec: k8s.V1PodSpec,
   numberOfHost: number
-) {
+): Promise<void> {
   // TODO(quoct): Right now we are using Kube Scheduler, we need to switch to Kueue
   // for resource assignment.
   podSpec.nodeName = ''
@@ -1064,7 +1064,7 @@ export async function createJobSet(
     )
   }
 
-  return await k8sCustomApi.createNamespacedCustomObject({
+  await k8sCustomApi.createNamespacedCustomObject({
     group: 'jobset.x-k8s.io',
     version: 'v1alpha2',
     namespace: namespace(),

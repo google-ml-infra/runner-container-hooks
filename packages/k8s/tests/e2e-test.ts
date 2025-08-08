@@ -12,7 +12,13 @@ import { ChildProcess, exec, execSync } from 'child_process'
 import { ENV_NUMBER_OF_HOSTS, runScriptByGrpc } from '../src/k8s/utils'
 import { MTLSCertAndPrivateKey } from '../src/k8s/certs'
 import process from 'process'
-import { cpToPod, createJobSet, getPodsFromJobSet, jobSetExists, pruneJobSet } from '../src/k8s'
+import {
+  cpToPod,
+  createJobSet,
+  getPodsFromJobSet,
+  jobSetExists,
+  pruneJobSet
+} from '../src/k8s'
 import path from 'path'
 
 const kc = new k8s.KubeConfig()
@@ -220,14 +226,16 @@ describe('jobset', () => {
   })
 
   it('createJobSet works', async () => {
-    const jobSetName = "test-jobset"
-    const podSpec: k8s.V1PodSpec =  {
-        restartPolicy: 'Never',
-        containers: [{
+    const jobSetName = 'test-jobset'
+    const podSpec: k8s.V1PodSpec = {
+      restartPolicy: 'Never',
+      containers: [
+        {
           name: 'nginx',
           image: 'nginx:latest',
           imagePullPolicy: 'IfNotPresent'
-        }]
+        }
+      ]
     } as k8s.V1PodSpec
     try {
       await expect(createJobSet(jobSetName, podSpec, 2)).resolves.not.toThrow()
@@ -236,7 +244,7 @@ describe('jobset', () => {
       const jobSetPods = await getPodsFromJobSet(jobSetName)
       expect(jobSetPods.items).toBe(2)
       expect(jobSetPods.items[0].spec?.containers[0].name).toBe('nginx')
-      expect(jobSetPods.items[0].spec?.containers[0].image).toBe('nginx:latest')  
+      expect(jobSetPods.items[0].spec?.containers[0].image).toBe('nginx:latest')
     } finally {
       await pruneJobSet(jobSetName)
     }
