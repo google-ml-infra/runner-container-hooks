@@ -164,7 +164,6 @@ async function prepareJobSet(
   await sleep(5_000)
   const pods = await getPodsFromJobSet(jobSetName)
 
-  let isAlpine = false
   let createdPod: k8s.V1Pod | undefined = undefined
   await Promise.all(
     pods.items.map(async pod => {
@@ -192,6 +191,8 @@ async function prepareJobSet(
       `failed to retrieve a pod from JobSet ${jobSetName} for ${noOfHosts} hosts.`
     )
   }
+
+  let isAlpine = false
   try {
     isAlpine = await isPodContainerAlpine(
       (createdPod as k8s.V1Pod).metadata!!.name!!,
