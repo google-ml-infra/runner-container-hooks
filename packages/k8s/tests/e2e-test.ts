@@ -242,9 +242,35 @@ describe('jobset', () => {
       await expect(jobSetExists(jobSetName)).resolves.toBeTruthy()
 
       const jobSetPods = await getPodsFromJobSet(jobSetName)
-      expect(jobSetPods.items).toBe(2)
+      expect(jobSetPods.items.length).toBe(2)
       expect(jobSetPods.items[0].spec?.containers[0].name).toBe('nginx')
       expect(jobSetPods.items[0].spec?.containers[0].image).toBe('nginx:latest')
+    } finally {
+      await pruneJobSet(jobSetName)
+    }
+  })
+
+  it('createJobSet added an initContainer to the jobset', async () => {
+    const jobSetName = 'test-jobset'
+    const podSpec: k8s.V1PodSpec = {
+      restartPolicy: 'Never',
+      containers: [
+        {
+          name: 'nginx',
+          image: 'nginx:latest',
+          imagePullPolicy: 'IfNotPresent'
+        }
+      ]
+    } as k8s.V1PodSpec
+    try {
+      await expect(createJobSet(jobSetName, podSpec, 2)).resolves.not.toThrow()
+      await expect(jobSetExists(jobSetName)).resolves.toBeTruthy()
+
+      const jobSetPods = await getPodsFromJobSet(jobSetName)
+      expect(jobSetPods.items[0].spec?.initContainers).toBeTruthy()
+      expect(jobSetPods.items[0].spec?.initContainers!![0].image).toBe(
+        'ghcr.io/actions/actions-runner:latest'
+      )
     } finally {
       await pruneJobSet(jobSetName)
     }
