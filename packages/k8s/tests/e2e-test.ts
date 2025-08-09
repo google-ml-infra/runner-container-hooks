@@ -9,7 +9,7 @@ import { TestHelper } from './test-setup'
 import * as k8s from '@kubernetes/client-node'
 import { generateCerts } from '../src/k8s/certs'
 import { ChildProcess, exec, execSync } from 'child_process'
-import { ENV_NUMBER_OF_HOSTS, runScriptByGrpc } from '../src/k8s/utils'
+import { ENV_NUMBER_OF_HOSTS, runScriptByGrpc, sleep } from '../src/k8s/utils'
 import { MTLSCertAndPrivateKey } from '../src/k8s/certs'
 import process from 'process'
 import {
@@ -240,6 +240,7 @@ describe('jobset', () => {
     } as k8s.V1PodSpec
     try {
       await expect(createJobSet(jobSetName, podSpec, 2)).resolves.not.toThrow()
+      await sleep(500)
       await expect(jobSetExists(jobSetName)).resolves.toBeTruthy()
 
       const jobSetPods = await getPodsFromJobSet(jobSetName)
@@ -265,6 +266,7 @@ describe('jobset', () => {
     } as k8s.V1PodSpec
     try {
       await expect(createJobSet(jobSetName, podSpec, 2)).resolves.not.toThrow()
+      await sleep(500)
       await expect(jobSetExists(jobSetName)).resolves.toBeTruthy()
 
       const jobSetPods = await getPodsFromJobSet(jobSetName)
