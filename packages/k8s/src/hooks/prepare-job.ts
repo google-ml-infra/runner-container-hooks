@@ -83,6 +83,7 @@ export async function prepareJob(
     throw new Error('No containers exist, skipping hook invocation')
   }
 
+  core.debug(`number of hosts requested are ${getNumberOfHost()}`)
   if (getNumberOfHost() > 1) {
     return await prepareJobSet(args, responseFile, container, extension)
   }
