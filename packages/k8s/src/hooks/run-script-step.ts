@@ -25,7 +25,7 @@ import {
   GRPC_SCRIPT_EXECUTOR_PORT,
   JOB_CONTAINER_NAME
 } from './constants'
-import { MTLSCertAndPrivateKey } from 'src/k8s/certs'
+import { MTLSCertAndPrivateKey } from '../k8s/certs'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
@@ -80,7 +80,7 @@ async function runScriptStepWithGRPC(
 async function runScriptStepInJobSet(
   scriptContent: string,
   rootCertClientAndKey: MTLSCertAndPrivateKey
-) {
+): Promise<void> {
   const jobSetName = getJobSetName()
   if (!(await jobSetExists(jobSetName))) {
     throw new Error(`JobSet ${jobSetName} does not exist.`)
