@@ -1,6 +1,7 @@
 import * as fs from 'fs'
 import { cleanupJob, prepareJob, runScriptStep } from '../src/hooks'
 import { TestHelper } from './test-setup'
+import { ENV_NUMBER_OF_HOSTS } from '../src/k8s/utils'
 
 jest.useRealTimers()
 
@@ -121,6 +122,48 @@ describe('Run script step', () => {
       )}:"* ]]; then exit 1; fi'`
     ]
 
+    await expect(
+      runScriptStep(
+        runScriptStepDefinition.args,
+        prepareJobOutputData.state,
+        null
+      )
+    ).resolves.not.toThrow()
+  })
+})
+
+describe('Run script step with JobSet', () => {
+  beforeEach(async () => {
+    testHelper = new TestHelper()
+    await testHelper.initialize()
+    const prepareJobOutputFilePath = testHelper.createFile(
+      'prepare-job-output.json'
+    )
+
+    const prepareJobData: any = testHelper.getPrepareJobDefinition()
+    runScriptStepDefinition = testHelper.getRunScriptStepDefinition()
+
+    prepareJobData.args.services = []
+    prepareJobData.args.container.portMappings = []
+
+    await prepareJob(prepareJobData.args, prepareJobOutputFilePath)
+    const outputContent = fs.readFileSync(prepareJobOutputFilePath)
+    prepareJobOutputData = JSON.parse(outputContent.toString())
+
+    process.env[ENV_NUMBER_OF_HOSTS] = '2'
+  })
+
+  afterEach(async () => {
+    await cleanupJob()
+    await testHelper.cleanup()
+    process.env[ENV_NUMBER_OF_HOSTS] = ''
+  })
+
+  // NOTE: To use this test, do kubectl apply -f podspec.yaml (from podspec examples)
+  // then change the name of the file to 'run-script-step-test.ts' and do
+  // npm run test run-script-step
+
+  it('should not throw an exception', async () => {
     await expect(
       runScriptStep(
         runScriptStepDefinition.args,
