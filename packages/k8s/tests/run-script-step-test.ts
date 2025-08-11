@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import { cleanupJob, prepareJob, runScriptStep } from '../src/hooks'
 import { TestHelper } from './test-setup'
-import { ENV_NUMBER_OF_HOSTS } from '../src/k8s/utils'
+import { ENV_NUMBER_OF_HOSTS, sleep } from '../src/k8s/utils'
 
 jest.useRealTimers()
 
@@ -151,6 +151,8 @@ describe('Run script step with JobSet', () => {
     await prepareJob(prepareJobData.args, prepareJobOutputFilePath)
     const outputContent = fs.readFileSync(prepareJobOutputFilePath)
     prepareJobOutputData = JSON.parse(outputContent.toString())
+
+    await sleep(5000)
   })
 
   afterEach(async () => {
