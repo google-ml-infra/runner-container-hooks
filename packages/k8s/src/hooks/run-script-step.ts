@@ -45,7 +45,7 @@ async function runScriptStepWithGRPC(
   core.debug('successfully retrieved root cert, client and key')
 
   if (getNumberOfHost() > 1) {
-    runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
+    return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
   }
 
   // This will throw after retrying with back off for up to 60s.
@@ -69,7 +69,9 @@ async function runScriptStepWithGRPC(
         core.debug(`Retrying execution for ECONNREFUSED.`)
         await backOffmanager.backOff()
       } else {
-        break
+        throw new Error(
+          `ScriptExecutorError when trying to execute: ${message}`
+        )
       }
     }
   }
@@ -84,9 +86,10 @@ async function runScriptStepInJobSet(
     throw new Error(`JobSet ${jobSetName} does not exist.`)
   }
 
-  core.debug(`retrieving pods from JobSet ${jobSetName}`)
-  const pods = await getPodsFromJobSet(jobSetName)
   try {
+    core.debug(`retrieving pods from JobSet ${jobSetName}`)
+    const pods = await getPodsFromJobSet(jobSetName)
+
     await Promise.all(
       pods.items.map(async pod => {
         try {
@@ -140,12 +143,18 @@ async function runScriptStepInJobSet(
             GRPC_SCRIPT_EXECUTOR_PORT
           )
         } catch (error) {
-          core.debug(`error while execing the pod in the jobset ${error}`)
+          const message = extractErrorMessageFromK8sError(error)
+          throw new Error(
+            `MultiHostError when execing the pod ${pod.metadata?.name} in JobSet ${jobSetName}: ${message}`
+          )
         }
       })
     )
   } catch (error) {
-    core.info('error execing waiting for debug ' + error)
+    const message = extractErrorMessageFromK8sError(error)
+    throw new Error(
+      `MultiHostError when execing pods in JobSet ${jobSetName}: ${message}`
+    )
   }
 }
 
