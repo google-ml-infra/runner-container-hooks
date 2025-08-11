@@ -134,6 +134,8 @@ describe.skip('Run script step', () => {
 
 describe('Run script step with JobSet', () => {
   beforeEach(async () => {
+    process.env[ENV_NUMBER_OF_HOSTS] = '2'
+
     testHelper = new TestHelper()
     await testHelper.initialize()
     const prepareJobOutputFilePath = testHelper.createFile(
@@ -149,13 +151,12 @@ describe('Run script step with JobSet', () => {
     await prepareJob(prepareJobData.args, prepareJobOutputFilePath)
     const outputContent = fs.readFileSync(prepareJobOutputFilePath)
     prepareJobOutputData = JSON.parse(outputContent.toString())
-
-    process.env[ENV_NUMBER_OF_HOSTS] = '2'
   })
 
   afterEach(async () => {
     await cleanupJob()
     await testHelper.cleanup()
+
     process.env[ENV_NUMBER_OF_HOSTS] = ''
   })
 
