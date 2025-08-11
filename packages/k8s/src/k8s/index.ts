@@ -151,10 +151,12 @@ export async function createPodSpec(
   podSpec.restartPolicy = 'Never'
   podSpec.volumes = []
 
+  console.log('quoct 0')
   if (useScriptExecutor()) {
     if (!jobContainer) {
       throw new Error('script executor only works with a job container')
     }
+    console.log('quoct 1')
     await prepareJobContainerAndPodForScriptExecutor(
       jobContainer,
       podSpec,
@@ -162,6 +164,7 @@ export async function createPodSpec(
     )
   }
 
+  console.log('quoct 2')
   const nodeName = await getCurrentNodeName()
   if (useKubeScheduler()) {
     podSpec.affinity = await getPodAffinity(nodeName)

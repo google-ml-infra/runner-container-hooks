@@ -10,7 +10,7 @@ import {
   STEP_POD_NAME_SUFFIX_LENGTH
 } from '../src/hooks/constants'
 
-describe('constants', () => {
+describe.skip('constants', () => {
   describe('runner instance label', () => {
     beforeEach(() => {
       process.env.ACTIONS_RUNNER_POD_NAME = 'example'

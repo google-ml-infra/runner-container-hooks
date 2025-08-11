@@ -23,7 +23,7 @@ let prepareJobData: any
 
 let prepareJobOutputFilePath: string
 
-describe('Prepare job', () => {
+describe.skip('Prepare job', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()

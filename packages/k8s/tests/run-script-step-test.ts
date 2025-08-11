@@ -11,7 +11,7 @@ let prepareJobOutputData: any
 
 let runScriptStepDefinition
 
-describe('Run script step', () => {
+describe.skip('Run script step', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()

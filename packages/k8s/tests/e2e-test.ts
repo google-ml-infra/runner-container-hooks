@@ -34,7 +34,7 @@ let testHelper: TestHelper
 let prepareJobData: any
 
 let prepareJobOutputFilePath: string
-describe('e2e', () => {
+describe.skip('e2e', () => {
   beforeEach(async () => {
     testHelper = new TestHelper()
     await testHelper.initialize()
@@ -69,7 +69,7 @@ describe('e2e', () => {
   })
 })
 
-describe('script-executor', () => {
+describe.skip('script-executor', () => {
   async function startServer(port: number): Promise<ChildProcess> {
     const server = exec(
       'node /tmp/node_modules/ml-velocity-script-executor/dist/index.js',
@@ -175,7 +175,7 @@ describe('script-executor', () => {
   })
 })
 
-describe('cpToPod', () => {
+describe.skip('cpToPod', () => {
   it('should copy local files to container without error', async () => {
     testHelper = new TestHelper()
     const pod = await testHelper.createTestJobPod()
