@@ -93,7 +93,6 @@ async function runScriptStepInJobSet(
     await Promise.all(
       pods.items.map(async pod => {
         try {
-          // TODO(quoct): Make the runScriptByGrpc set up step not stream output back.
           core.debug(
             'deleting _temp folder, /github/workflow/ and /github/home/ folders'
           )
@@ -103,7 +102,8 @@ async function runScriptStepInJobSet(
             rootCertClientAndKey.clientCertAndKey.cert,
             rootCertClientAndKey.clientCertAndKey.privateKey,
             pod.status!!.podIP!!,
-            GRPC_SCRIPT_EXECUTOR_PORT
+            GRPC_SCRIPT_EXECUTOR_PORT,
+            false
           )
 
           core.debug(
@@ -123,7 +123,8 @@ async function runScriptStepInJobSet(
             rootCertClientAndKey.clientCertAndKey.cert,
             rootCertClientAndKey.clientCertAndKey.privateKey,
             pod.status!!.podIP!!,
-            GRPC_SCRIPT_EXECUTOR_PORT
+            GRPC_SCRIPT_EXECUTOR_PORT,
+            false
           )
 
           const jobCompletionIndex =
@@ -140,7 +141,9 @@ async function runScriptStepInJobSet(
             rootCertClientAndKey.clientCertAndKey.cert,
             rootCertClientAndKey.clientCertAndKey.privateKey,
             pod.status!!.podIP!!,
-            GRPC_SCRIPT_EXECUTOR_PORT
+            GRPC_SCRIPT_EXECUTOR_PORT,
+            true,
+            `job-${jobCompletionIndex}: `
           )
         } catch (error) {
           const message = extractErrorMessageFromK8sError(error)

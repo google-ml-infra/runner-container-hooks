@@ -343,7 +343,8 @@ export async function sleep(ms: number): Promise<void> {
 
 /**
  * Invoke GRPC server at ip_address:grpc_port to run a command.
- * Stream output and error from the command to the console.
+ * Stream output and error from the command to the console by default.
+ * Also appends a jobPrefix string to the output if provided.
  */
 export async function runScriptByGrpc(
   command: string,
@@ -351,7 +352,9 @@ export async function runScriptByGrpc(
   clientCert: string,
   clientKey: string,
   ip: string,
-  grpc_port = 50051
+  grpc_port = 50051,
+  streamOutputAndError = true,
+  jobPrefix = ''
 ): Promise<void> {
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
@@ -371,38 +374,43 @@ export async function runScriptByGrpc(
     }
   )
 
+  core.debug(`executing script ${command} for job ${jobPrefix}`)
   // TODO(quoct): Add logic to prevent duplicate execution using the `id` field.
   const call = client.ExecuteScript(
     new script_executor.ScriptRequest({ script: command })
   )
-  await new Promise<void>(async function (resolve, reject) {
+  return new Promise<void>(async function (resolve, reject) {
     let exitCode = -1
     call.on('data', (response: script_executor.ScriptResponse) => {
       if (response.has_code) {
         exitCode = response.code
       }
-      if (response.has_output) {
-        process.stdout.write(response.output)
+      if (response.has_output && streamOutputAndError) {
+        process.stdout.write(`${jobPrefix}${response.output}`)
       }
-      if (response.has_error) {
-        process.stderr.write(response.error)
+      if (response.has_error && streamOutputAndError) {
+        process.stderr.write(`${jobPrefix}${response.error}`)
       }
     })
 
     call.on('end', async () => {
       // Half a second wait in case the data event with the exit code did not get triggered yet.
       await sleep(500)
-      process.stdout.write(`Job exit code is ${exitCode}.`)
+      if (streamOutputAndError) {
+        process.stdout.write(`${jobPrefix}Job exit code is ${exitCode}.`)
+      }
       if (exitCode === 0) {
         resolve()
       } else {
-        reject(new Error(`Job failed with exit code ${exitCode}.`))
+        reject(new Error(`${jobPrefix}Job failed with exit code ${exitCode}.`))
       }
     })
 
     call.on('error', (err: any) => {
-      const errorMessage = `Error execing ${command}: ${err}`
-      process.stdout.write(errorMessage)
+      const errorMessage = `${jobPrefix}Error execing ${command}: ${err}`
+      if (streamOutputAndError) {
+        process.stdout.write(errorMessage)
+      }
       reject(new Error(errorMessage))
     })
   })
