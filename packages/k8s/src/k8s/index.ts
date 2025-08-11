@@ -881,6 +881,7 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
     labelSelector: `${certDictKey},certs=true`
   })
   if (secrets.items.length !== 1) {
+    console.debug(`secrets items ${JSON.stringify(secrets.items)}`)
     throw new Error(
       'There should only be one cert secret for the workflow pod.'
     )
