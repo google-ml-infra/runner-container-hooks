@@ -138,7 +138,7 @@ export async function prepareJob(
   }
   core.debug(`Setting isAlpine to ${isAlpine}`)
 
-  if (useScriptExecutor()) {
+  if (useScriptExecutor() && getNumberOfHost() == 1) {
     core.debug(`Creating headless service`)
     await createHeadlessService()
   }
