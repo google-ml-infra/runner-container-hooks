@@ -19,7 +19,7 @@ import { CertCommonName, generateCert, generateCerts } from '../src/k8s/certs'
 
 let testHelper: TestHelper
 
-describe.skip('k8s utils', () => {
+describe('k8s utils', () => {
   describe('write entrypoint', () => {
     beforeEach(async () => {
       testHelper = new TestHelper()
@@ -568,7 +568,7 @@ spec:
   })
 })
 
-describe.skip('certs', () => {
+describe('certs', () => {
   it('should create self-signed CA', () => {
     const caCert = generateCert(7, CertCommonName.ROOT, CertCommonName.ROOT)
     expect(caCert.cert.subject.attributes).toEqual(

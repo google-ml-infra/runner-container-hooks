@@ -151,12 +151,10 @@ export async function createPodSpec(
   podSpec.restartPolicy = 'Never'
   podSpec.volumes = []
 
-  console.log('quoct 0')
   if (useScriptExecutor()) {
     if (!jobContainer) {
       throw new Error('script executor only works with a job container')
     }
-    console.log('quoct 1')
     await prepareJobContainerAndPodForScriptExecutor(
       jobContainer,
       podSpec,
@@ -164,7 +162,6 @@ export async function createPodSpec(
     )
   }
 
-  console.log('quoct 2')
   const nodeName = await getCurrentNodeName()
   if (useKubeScheduler()) {
     podSpec.affinity = await getPodAffinity(nodeName)
@@ -228,7 +225,7 @@ export async function prepareJobContainerAndPodForScriptExecutor(
 
   jobContainer.volumeMounts.push(executorVolumeMount)
 
-  console.log('adding cert volume to pod spec and volumeMount to jobContainer.')
+  core.info('adding cert volume to pod spec and volumeMount to jobContainer.')
   await addCertVolumeAndVolumeMount(appPodSpec, jobContainer, instanceLabel)
 }
 
@@ -884,7 +881,6 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
     labelSelector: `${certDictKey},certs=true`
   })
   if (secrets.items.length !== 1) {
-    console.log(`secrets items ${JSON.stringify(secrets.items)}`)
     throw new Error(
       'There should only be one cert secret for the workflow pod.'
     )

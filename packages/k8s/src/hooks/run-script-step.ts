@@ -89,7 +89,6 @@ async function runScriptStepInJobSet(
   try {
     core.debug(`retrieving pods from JobSet ${jobSetName}`)
     const pods = await getPodsFromJobSet(jobSetName)
-    console.log(`pods are ${JSON.stringify(pods.items)}`)
 
     await Promise.all(
       pods.items.map(async pod => {
