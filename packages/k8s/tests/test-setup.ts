@@ -3,6 +3,7 @@ import * as fs from 'fs'
 import { HookData } from 'hooklib/lib'
 import * as path from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import { getJobSetName } from '../src/hooks/constants'
 
 const kc = new k8s.KubeConfig()
 
@@ -76,6 +77,16 @@ export class TestHelper {
       .deleteNamespacedPod({
         name: `${this.podName}-workflow`,
         namespace: 'default',
+        gracePeriodSeconds: 0
+      })
+      .catch(e => {})
+    await k8sCustomApi
+      .deleteNamespacedCustomObject({
+        group: 'jobset.x-k8s.io',
+        version: 'v1alpha2',
+        namespace: 'default',
+        plural: 'jobsets',
+        name: getJobSetName(),
         gracePeriodSeconds: 0
       })
       .catch(e => {})

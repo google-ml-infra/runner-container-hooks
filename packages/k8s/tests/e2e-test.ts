@@ -197,6 +197,14 @@ describe('cpToPod', () => {
 })
 
 describe('jobset', () => {
+  beforeEach(async () => {
+    testHelper = new TestHelper()
+    await testHelper.initialize()
+  })
+  afterEach(async () => {
+    await testHelper.cleanup()
+  })
+
   it('jobSetExists returns false if a jobset does not exist', async () => {
     await expect(jobSetExists('random-jobset')).resolves.toBeFalsy()
   })

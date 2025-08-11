@@ -5,21 +5,27 @@ import * as core from '@actions/core'
 import { RunScriptStepArgs } from 'hooklib'
 import {
   BackOffManager,
+  cpToPod,
   execPodStep,
   extractErrorMessageFromK8sError,
-  getRootCertClientCertAndKey
+  getPodsFromJobSet,
+  getRootCertClientCertAndKey,
+  jobSetExists
 } from '../k8s'
 import {
   getEntryPointScriptContent,
+  getNumberOfHost,
   runScriptByGrpc,
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
 import {
+  getJobSetName,
   getServiceName,
   GRPC_SCRIPT_EXECUTOR_PORT,
   JOB_CONTAINER_NAME
 } from './constants'
+import { MTLSCertAndPrivateKey } from '../k8s/certs'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
@@ -37,6 +43,10 @@ async function runScriptStepWithGRPC(
   core.info('using script executor')
   const rootCertClientAndKey = await getRootCertClientCertAndKey()
   core.debug('successfully retrieved root cert, client and key')
+
+  if (getNumberOfHost() > 1) {
+    return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
+  }
 
   // This will throw after retrying with back off for up to 60s.
   const backOffmanager = new BackOffManager(60)
@@ -59,9 +69,92 @@ async function runScriptStepWithGRPC(
         core.debug(`Retrying execution for ECONNREFUSED.`)
         await backOffmanager.backOff()
       } else {
-        break
+        throw new Error(
+          `ScriptExecutorError when trying to execute: ${message}`
+        )
       }
     }
+  }
+}
+
+async function runScriptStepInJobSet(
+  scriptContent: string,
+  rootCertClientAndKey: MTLSCertAndPrivateKey
+): Promise<void> {
+  const jobSetName = getJobSetName()
+  if (!(await jobSetExists(jobSetName))) {
+    throw new Error(`JobSet ${jobSetName} does not exist.`)
+  }
+
+  try {
+    core.debug(`retrieving pods from JobSet ${jobSetName}`)
+    const pods = await getPodsFromJobSet(jobSetName)
+
+    await Promise.all(
+      pods.items.map(async pod => {
+        try {
+          // TODO(quoct): Make the runScriptByGrpc set up step not stream output back.
+          core.debug(
+            'deleting _temp folder, /github/workflow/ and /github/home/ folders'
+          )
+          await runScriptByGrpc(
+            'rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow; mkdir -p /__w/_temp/',
+            rootCertClientAndKey.caCertAndkey.cert,
+            rootCertClientAndKey.clientCertAndKey.cert,
+            rootCertClientAndKey.clientCertAndKey.privateKey,
+            pod.status!!.podIP!!,
+            GRPC_SCRIPT_EXECUTOR_PORT
+          )
+
+          core.debug(
+            `copying temp folder for ${pod.metadata!!
+              .name!!} in ${JOB_CONTAINER_NAME} container`
+          )
+          await cpToPod(
+            pod.metadata!!.name!!,
+            JOB_CONTAINER_NAME,
+            '/home/runner/_work/_temp',
+            '/__w/_temp'
+          )
+          core.debug('copying github_home and github_workflow folder')
+          await runScriptByGrpc(
+            'cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow',
+            rootCertClientAndKey.caCertAndkey.cert,
+            rootCertClientAndKey.clientCertAndKey.cert,
+            rootCertClientAndKey.clientCertAndKey.privateKey,
+            pod.status!!.podIP!!,
+            GRPC_SCRIPT_EXECUTOR_PORT
+          )
+
+          const jobCompletionIndex =
+            pod.metadata?.annotations!![
+              'batch.kubernetes.io/job-completion-index'
+            ]
+          core.debug(
+            `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
+          )
+          // TODO(quoct): Add a prefix to the log output
+          return runScriptByGrpc(
+            scriptContent,
+            rootCertClientAndKey.caCertAndkey.cert,
+            rootCertClientAndKey.clientCertAndKey.cert,
+            rootCertClientAndKey.clientCertAndKey.privateKey,
+            pod.status!!.podIP!!,
+            GRPC_SCRIPT_EXECUTOR_PORT
+          )
+        } catch (error) {
+          const message = extractErrorMessageFromK8sError(error)
+          throw new Error(
+            `MultiHostError when execing the pod ${pod.metadata?.name} in JobSet ${jobSetName}: ${message}`
+          )
+        }
+      })
+    )
+  } catch (error) {
+    const message = extractErrorMessageFromK8sError(error)
+    throw new Error(
+      `MultiHostError when execing pods in JobSet ${jobSetName}: ${message}`
+    )
   }
 }
 
