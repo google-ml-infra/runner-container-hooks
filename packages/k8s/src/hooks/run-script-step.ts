@@ -135,6 +135,7 @@ async function runScriptStepInJobSet(
           core.debug(
             `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
           )
+          await sleep(5000000)
           // TODO(quoct): Add a prefix to the log output
           return runScriptByGrpc(
             scriptContent,
@@ -149,7 +150,7 @@ async function runScriptStepInJobSet(
         } catch (error) {
           core.info('quoct sleeping')
           const message = extractErrorMessageFromK8sError(error)
-          sleep(500000)
+          await sleep(500000)
           throw new Error(
             `MultiHostError when execing the pod ${pod.metadata?.name} in JobSet ${jobSetName}: ${message}`
           )
@@ -159,7 +160,7 @@ async function runScriptStepInJobSet(
   } catch (error) {
     core.info('quoct sleeping')
     const message = extractErrorMessageFromK8sError(error)
-    sleep(500000)
+    await sleep(500000)
     throw new Error(
       `MultiHostError when execing pods in JobSet ${jobSetName}: ${message}`
     )
