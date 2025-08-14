@@ -961,7 +961,7 @@ export async function cpToPod(
   }
 }
 
-const getCircularReplacer = () => {
+export const circularReplacer = () => {
   const seen = new WeakSet();
   return (key, value) => {
     if (typeof value === 'object' && value !== null) {
@@ -975,7 +975,7 @@ const getCircularReplacer = () => {
 };
 
 export function extractErrorMessageFromK8sError(error: unknown): string {
-  return String((error as any)?.response?.body?.message || error)
+  return JSON.stringify(String((error as any)?.response?.body?.message || error), circularReplacer())
 }
 
 export async function deleteJobSet(jobSetName: string): Promise<void> {

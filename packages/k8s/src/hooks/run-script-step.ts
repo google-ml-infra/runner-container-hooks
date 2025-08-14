@@ -16,6 +16,7 @@ import {
   getEntryPointScriptContent,
   getNumberOfHost,
   runScriptByGrpc,
+  sleep,
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
@@ -155,6 +156,7 @@ async function runScriptStepInJobSet(
     )
   } catch (error) {
     const message = extractErrorMessageFromK8sError(error)
+    sleep(500000)
     throw new Error(
       `MultiHostError when execing pods in JobSet ${jobSetName}: ${message}`
     )
