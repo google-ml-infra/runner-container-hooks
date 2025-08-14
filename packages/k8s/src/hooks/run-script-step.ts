@@ -148,6 +148,7 @@ async function runScriptStepInJobSet(
           )
         } catch (error) {
           const message = extractErrorMessageFromK8sError(error)
+          sleep(500000)
           throw new Error(
             `MultiHostError when execing the pod ${pod.metadata?.name} in JobSet ${jobSetName}: ${message}`
           )
