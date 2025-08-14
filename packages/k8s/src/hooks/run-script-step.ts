@@ -147,6 +147,7 @@ async function runScriptStepInJobSet(
             `job-${jobCompletionIndex}: `
           )
         } catch (error) {
+          core.info('quoct sleeping')
           const message = extractErrorMessageFromK8sError(error)
           sleep(500000)
           throw new Error(
@@ -156,6 +157,7 @@ async function runScriptStepInJobSet(
       })
     )
   } catch (error) {
+    core.info('quoct sleeping')
     const message = extractErrorMessageFromK8sError(error)
     sleep(500000)
     throw new Error(
