@@ -935,6 +935,7 @@ export async function cpToPod(
           false,
           async () => {
             if (errStream.size()) {
+              core.debug('error!')
               const errString = JSON.stringify(errStream.getContentsAsString(), circularReplacer())
               core.debug(
                 `error copying 0 ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${errString})}`
@@ -975,6 +976,7 @@ export const circularReplacer = () => {
 };
 
 export function extractErrorMessageFromK8sError(error: unknown): string {
+  core.debug('extracting error message')
   return JSON.stringify(String((error as any)?.response?.body?.message || error), circularReplacer())
 }
 

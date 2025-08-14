@@ -99,7 +99,7 @@ async function runScriptStepInJobSet(
             'deleting _temp folder, /github/workflow/, _actions and /github/home/ folders'
           )
           await runScriptByGrpc(
-            'rm -rf /__w/_actions; rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow; mkdir -p /__w/_temp/',
+            'rm -rf /__w/_actions; rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow; mkdir -p /__w/_temp; mkdir -p /__w/_actions',
             rootCertClientAndKey.caCertAndkey.cert,
             rootCertClientAndKey.clientCertAndKey.cert,
             rootCertClientAndKey.clientCertAndKey.privateKey,
@@ -120,7 +120,7 @@ async function runScriptStepInJobSet(
           )
 
           if (fs.existsSync('/home/runner/_work/_actions')) {
-            core.debug('copying /_work/_actions')
+            core.debug('copying /home/runner/_work/_actions')
             await cpToPod(
               pod.metadata!!.name!!,
               JOB_CONTAINER_NAME,
@@ -159,8 +159,8 @@ async function runScriptStepInJobSet(
             `job-${jobCompletionIndex}: `
           )
         } catch (error) {
-          core.info('quoct sleeping')
           const message = extractErrorMessageFromK8sError(error)
+          core.info(`quoct sleeping ${message}`)
           await sleep(500000)
           throw new Error(
             `MultiHostError when execing the pod ${pod.metadata?.name} in JobSet ${jobSetName}: ${message}`
@@ -169,8 +169,8 @@ async function runScriptStepInJobSet(
       })
     )
   } catch (error) {
-    core.info('quoct sleeping')
     const message = extractErrorMessageFromK8sError(error)
+    core.info(`quoct sleeping ${message}`)
     await sleep(500000)
     throw new Error(
       `MultiHostError when execing pods in JobSet ${jobSetName}: ${message}`
