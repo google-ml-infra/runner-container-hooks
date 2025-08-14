@@ -402,6 +402,8 @@ export async function runScriptByGrpc(
       if (exitCode === 0) {
         resolve()
       } else {
+        core.debug('oh nooooo')
+        sleep(500000)
         reject(new Error(`${jobPrefix}Job failed with exit code ${exitCode}.`))
       }
     })
