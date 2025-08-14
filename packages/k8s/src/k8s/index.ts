@@ -937,7 +937,7 @@ export async function cpToPod(
             if (errStream.size()) {
               const errString = errStream.getContentsAsString()
               core.debug(
-                `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(message)}`
+                `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(errString)}`
               )
               reject(new Error(`Error from cpToPod - details: \n ${errString}`))
             } else {
@@ -956,7 +956,7 @@ export async function cpToPod(
     core.debug('finished copying')
   } catch (error) {
     core.debug(
-      `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(message)})}`
+      `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(error)})}`
     )
   }
 }
