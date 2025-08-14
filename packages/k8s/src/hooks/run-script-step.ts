@@ -94,11 +94,12 @@ async function runScriptStepInJobSet(
     await Promise.all(
       pods.items.map(async pod => {
         try {
+          // TODO(quoct): Check if we can optimize and not delete the _actions folder every time.
           core.debug(
-            'deleting _temp folder, /github/workflow/ and /github/home/ folders'
+            'deleting _temp folder, /github/workflow/, _actions and /github/home/ folders'
           )
           await runScriptByGrpc(
-            'rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow; mkdir -p /__w/_temp/',
+            'rm -rf /__w/_actions; rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow; mkdir -p /__w/_temp/',
             rootCertClientAndKey.caCertAndkey.cert,
             rootCertClientAndKey.clientCertAndKey.cert,
             rootCertClientAndKey.clientCertAndKey.privateKey,
@@ -117,6 +118,17 @@ async function runScriptStepInJobSet(
             '/home/runner/_work/_temp',
             '/__w/_temp'
           )
+
+          if (fs.existsSync('/home/runner/_work/_actions')) {
+            core.debug('copying /_work/_actions')
+            await cpToPod(
+              pod.metadata!!.name!!,
+              JOB_CONTAINER_NAME,
+              '/home/runner/_work/_actions',
+              '/__w/_actions'
+            )
+          }
+
           core.debug('copying github_home and github_workflow folder')
           await runScriptByGrpc(
             'cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow',
@@ -135,7 +147,6 @@ async function runScriptStepInJobSet(
           core.debug(
             `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
           )
-          await sleep(5000000)
           // TODO(quoct): Add a prefix to the log output
           return runScriptByGrpc(
             scriptContent,
