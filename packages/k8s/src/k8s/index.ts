@@ -937,7 +937,7 @@ export async function cpToPod(
             if (errStream.size()) {
               const errString = errStream.getContentsAsString()
               core.debug(
-                `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(errString)}`
+                `error copying 0 ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${errString})}`
               )
               reject(new Error(`Error from cpToPod - details: \n ${errString}`))
             } else {
@@ -948,7 +948,7 @@ export async function cpToPod(
       } catch (error) {
         const message = extractErrorMessageFromK8sError(error)
         core.debug(
-          `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(message)}`
+          `error copying 1 ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(message, getCircularReplacer())}`
         )
         reject(error)
       }
@@ -956,10 +956,23 @@ export async function cpToPod(
     core.debug('finished copying')
   } catch (error) {
     core.debug(
-      `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(error)})}`
+      `error copying 2 ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${JSON.stringify(error, getCircularReplacer())})}`
     )
   }
 }
+
+const getCircularReplacer = () => {
+  const seen = new WeakSet();
+  return (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular]'; // Replace circular reference
+      }
+      seen.add(value);
+    }
+    return value;
+  };
+};
 
 export function extractErrorMessageFromK8sError(error: unknown): string {
   return String((error as any)?.response?.body?.message || error)
