@@ -4,6 +4,7 @@ import * as tar from 'tar-fs'
 import { WritableStreamBuffer } from 'stream-buffers'
 import { ContainerInfo, Registry } from 'hooklib'
 import * as stream from 'stream'
+import stringify from 'json-stringify-safe'
 import {
   getJobPodName,
   getRunnerPodName,
@@ -935,7 +936,7 @@ export async function cpToPod(
           false,
           async () => {
             if (errStream.size()) {
-              const errString = errStream.getContentsAsString()
+              const errString = stringify(errStream.getContentsAsString())
               core.debug(
                 `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${errString}`
               )
@@ -962,7 +963,7 @@ export async function cpToPod(
 }
 
 export function extractErrorMessageFromK8sError(error: unknown): string {
-  return String((error as any)?.response?.body?.message || error)
+  return stringify(String((error as any)?.response?.body?.message || error))
 }
 
 export async function deleteJobSet(jobSetName: string): Promise<void> {
