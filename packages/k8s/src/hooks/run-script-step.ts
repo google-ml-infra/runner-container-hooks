@@ -94,52 +94,11 @@ async function runScriptStepInJobSet(
     await Promise.all(
       pods.items.map(async pod => {
         try {
-          // TODO(quoct): Check if we can optimize and not delete the _actions folder every time.
-          core.debug(
-            'deleting _temp folder, /github/workflow/, _actions and /github/home/ folders'
-          )
-          await runScriptByGrpc(
-            'rm -rf /__w/_actions; rm -rf /__w/_temp/*; rm -rf /github/home/*; rm -rf /github/workflow/*; mkdir -p /github/home; mkdir -p /github/workflow; mkdir -p /__w/_temp; mkdir -p /__w/_actions',
-            rootCertClientAndKey.caCertAndkey.cert,
-            rootCertClientAndKey.clientCertAndKey.cert,
-            rootCertClientAndKey.clientCertAndKey.privateKey,
+          await syncRunnerFolderToWorkflowPod(
+            pod.metadata?.name!!,
             pod.status!!.podIP!!,
-            GRPC_SCRIPT_EXECUTOR_PORT,
-            false
+            rootCertClientAndKey
           )
-
-          core.debug(
-            `copying temp folder for ${pod.metadata!!
-              .name!!} in ${JOB_CONTAINER_NAME} container`
-          )
-          await cpToPod(
-            pod.metadata!!.name!!,
-            JOB_CONTAINER_NAME,
-            '/home/runner/_work/_temp',
-            '/__w/_temp'
-          )
-
-          if (fs.existsSync('/home/runner/_work/_actions')) {
-            core.debug('copying /home/runner/_work/_actions')
-            await cpToPod(
-              pod.metadata!!.name!!,
-              JOB_CONTAINER_NAME,
-              '/home/runner/_work/_actions',
-              '/__w/_actions'
-            )
-          }
-
-          core.debug('copying github_home and github_workflow folder')
-          await runScriptByGrpc(
-            'cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow',
-            rootCertClientAndKey.caCertAndkey.cert,
-            rootCertClientAndKey.clientCertAndKey.cert,
-            rootCertClientAndKey.clientCertAndKey.privateKey,
-            pod.status!!.podIP!!,
-            GRPC_SCRIPT_EXECUTOR_PORT,
-            false
-          )
-
           const jobCompletionIndex =
             pod.metadata?.annotations!![
               'batch.kubernetes.io/job-completion-index'
@@ -172,6 +131,79 @@ async function runScriptStepInJobSet(
       `MultiHostError when execing pods in JobSet ${jobSetName}: ${message}`
     )
   }
+}
+
+// TODO(quoct): Check if we can optimize and not delete the _actions folder every time.
+async function syncRunnerFolderToWorkflowPod(
+  podName: string,
+  podIp: string,
+  rootCertClientAndKey: MTLSCertAndPrivateKey
+): Promise<void> {
+  // TODO(quoct): Check if we can optimize and not delete the _actions folder every time.
+  core.debug(
+    'deleting _temp folder, /github/workflow/, _actions and /github/home/ folders'
+  )
+  const command = `rm -rf /__w/_tool;
+rm -rf /__w/_actions;
+rm -rf /__w/_temp/*;
+rm -rf /github/home/*;
+rm -rf /github/workflow/*;
+mkdir -p /github/home;
+mkdir -p /github/workflow;
+mkdir -p /__w/_temp;
+mkdir -p /__w/_actions;
+mkdir -p /__w/_tool`
+
+  await runScriptByGrpc(
+    command,
+    rootCertClientAndKey.caCertAndkey.cert,
+    rootCertClientAndKey.clientCertAndKey.cert,
+    rootCertClientAndKey.clientCertAndKey.privateKey,
+    podIp,
+    GRPC_SCRIPT_EXECUTOR_PORT,
+    false
+  )
+
+  core.info(
+    `copying temp folder for ${podName} in ${JOB_CONTAINER_NAME} container`
+  )
+  await cpToPod(
+    podName,
+    JOB_CONTAINER_NAME,
+    '/home/runner/_work/_temp',
+    '/__w/_temp'
+  )
+
+  if (fs.existsSync('/home/runner/_work/_actions')) {
+    core.info('copying /home/runner/_work/_actions')
+    await cpToPod(
+      podName,
+      JOB_CONTAINER_NAME,
+      '/home/runner/_work/_actions',
+      '/__w/_actions'
+    )
+  }
+
+  if (fs.existsSync('/home/runner/_work/_tool')) {
+    core.info('copying /home/runner/_work/_tool')
+    await cpToPod(
+      podName,
+      JOB_CONTAINER_NAME,
+      '/home/runner/_work/_tool',
+      '/__w/_tool'
+    )
+  }
+
+  core.info('copying github_home and github_workflow folder')
+  await runScriptByGrpc(
+    'cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow',
+    rootCertClientAndKey.caCertAndkey.cert,
+    rootCertClientAndKey.clientCertAndKey.cert,
+    rootCertClientAndKey.clientCertAndKey.privateKey,
+    podIp,
+    GRPC_SCRIPT_EXECUTOR_PORT,
+    false
+  )
 }
 
 export async function runScriptStep(
