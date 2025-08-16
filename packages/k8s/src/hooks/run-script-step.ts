@@ -44,6 +44,7 @@ async function runScriptStepWithGRPC(
   core.info('using script executor')
   const rootCertClientAndKey = await getRootCertClientCertAndKey()
   core.debug('successfully retrieved root cert, client and key')
+  core.info('script content is ' + scriptContent)
 
   if (getNumberOfHost() > 1) {
     return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
