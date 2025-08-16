@@ -143,11 +143,7 @@ async function syncRunnerFolderToWorkflowPod(
   core.debug(
     'deleting _temp folder, /github/workflow/, _actions and /github/home/ folders'
   )
-  const command = `rm -rf /__w/_tool;
-rm -rf /__w/_actions;
-rm -rf /__w/_temp/*;
-rm -rf /github/home/*;
-rm -rf /github/workflow/*;
+  const command = `
 mkdir -p /github/home;
 mkdir -p /github/workflow;
 mkdir -p /__w/_temp;
