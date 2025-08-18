@@ -312,7 +312,8 @@ export function useScriptExecutor(): boolean {
 }
 
 export function getNumberOfHost(): number {
-  return Number(process.env[ENV_NUMBER_OF_HOSTS]) || 1
+  return 1
+//  return Number(process.env[ENV_NUMBER_OF_HOSTS]) || 1
 }
 
 export enum PodPhase {
