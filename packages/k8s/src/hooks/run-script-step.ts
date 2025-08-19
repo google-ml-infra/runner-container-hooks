@@ -145,6 +145,15 @@ async function runScriptStepInJobSet(
       })
     )
     core.debug(`syncing workflow pod to runner pod with copyFromPod`)
+    await runScriptByGrpc(
+      'ls /__w/_temp/_runner_file_commands; echo "contents", cat /__w/_temp/_runner_file_commands/*',
+      rootCertClientAndKey.caCertAndkey.cert,
+      rootCertClientAndKey.clientCertAndKey.cert,
+      rootCertClientAndKey.clientCertAndKey.privateKey,
+      pods.items[0].status!!.podIP!!,
+      GRPC_SCRIPT_EXECUTOR_PORT,
+      true
+    )
     // We can just copy from one of the pod.
     await copyFromPod('/__w/_temp/_runner_file_commands', '/home/runner/_work/_temp/_runner_file_commands', pods.items[0].metadata!!.name!!, JOB_CONTAINER_NAME)
     core.debug(`done copying`)
