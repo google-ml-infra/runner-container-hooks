@@ -33,7 +33,7 @@ async function runScriptStepWithGRPC(
   state
 ): Promise<void> {
   const runnerDir = `/home/runner/_work/_temp/_runner_file_commands`
-  const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
+  const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands')
 
   const { entryPoint, entryPointArgs, environmentVariables } = args
   const scriptContent = getEntryPointScriptContent(
@@ -134,7 +134,7 @@ async function runScriptStepInJobSet(
             pod.status!!.podIP!!,
             GRPC_SCRIPT_EXECUTOR_PORT,
             true,
-            `job-${jobCompletionIndex}`
+            `(job-${jobCompletionIndex}): `
           )
         } catch (error) {
           const message = extractErrorMessageFromK8sError(error)
@@ -146,7 +146,12 @@ async function runScriptStepInJobSet(
     )
 
     core.debug(`syncing workflow pod to runner pod with copyFromPod`)
-    await copyFromPod('/__w/_temp/_runner_file_commands', '/home/runner/_work/_temp/_runner_file_commands', pods.items[0].metadata!!.name!!, JOB_CONTAINER_NAME)
+    await copyFromPod(
+      '/__w/_temp/_runner_file_commands',
+      '/home/runner/_work/_temp/_runner_file_commands',
+      pods.items[0].metadata!!.name!!,
+      JOB_CONTAINER_NAME
+    )
   } catch (error) {
     const message = extractErrorMessageFromK8sError(error)
     throw new Error(

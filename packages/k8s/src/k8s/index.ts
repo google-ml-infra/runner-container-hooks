@@ -24,7 +24,7 @@ import {
   fixArgs,
   createScriptExecutorContainer,
   useScriptExecutor,
-  getNumberOfHost,
+  getNumberOfHost
 } from './utils'
 import { generateCerts, MTLSCertAndPrivateKey } from './certs'
 import { v4 as uuidv4 } from 'uuid'
@@ -910,12 +910,17 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
 // Copy files from sourcePathFolder to localPath.
 // For example copyFromPod(/foo/bar, /bar, podName, containerName) will copy
 // all files in /foo/bar into /bar.
-export async function copyFromPod(sourcePathFolder: string, localPath: string, podName: string, containerName: string) {
-  const command = ['tar', 'cf', '-', '-C', sourcePathFolder, "."]
+export async function copyFromPod(
+  sourcePathFolder: string,
+  localPath: string,
+  podName: string,
+  containerName: string
+): Promise<void> {
+  const command = ['tar', 'cf', '-', '-C', sourcePathFolder, '.']
   const errStream = new WritableStreamBuffer()
 
   if (!fs.existsSync(localPath)) {
-    fs.mkdirSync(localPath, { recursive: true})
+    fs.mkdirSync(localPath, { recursive: true })
   }
   const extract = tar.extract(localPath)
 
@@ -940,13 +945,13 @@ export async function copyFromPod(sourcePathFolder: string, localPath: string, p
               )
               reject(new Error(`Error from cpToPod - details: \n ${errString}`))
             } else {
-              core.debug('wait for extracting to finish')
-              extract.on("error", err => {
-                core.debug(`Error extracting ${err}`)
-                reject()
+              core.debug('wait for extraction to finish')
+              extract.on('error', err => {
+                core.debug(`error extracting ${err}`)
+                reject(new Error(`error extracting ${err}`))
               })
-              extract.on("finish", () => {
-                core.debug(`Extract finished copying `)
+              extract.on('finish', () => {
+                core.debug(`extract finished copying `)
                 resolve()
               })
             }
