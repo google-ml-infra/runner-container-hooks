@@ -33,6 +33,19 @@ async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
   state
 ): Promise<void> {
+  const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
+
+  core.debug('read files before')
+  for (const file of files) {
+    core.debug(`content of  file ${file}`)
+    const stats = await fs.promises.stat(file);
+
+    if (stats.isFile()) {
+      const content = fs.readFileSync(file).toString();
+      core.debug(content)
+    }
+  }
+
   const { entryPoint, entryPointArgs, environmentVariables } = args
   const scriptContent = getEntryPointScriptContent(
     args.workingDirectory,
@@ -157,6 +170,18 @@ async function runScriptStepInJobSet(
     // We can just copy from one of the pod.
     await copyFromPod('/__w/_temp/_runner_file_commands', '/home/runner/_work/_temp/_runner_file_commands', pods.items[0].metadata!!.name!!, JOB_CONTAINER_NAME)
     core.debug(`done copying`)
+
+    const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
+
+    for (const file of files) {
+      core.debug(`content of  file ${file}`)
+      const stats = await fs.promises.stat(file);
+
+      if (stats.isFile()) {
+        const content = fs.readFileSync(file).toString();
+        core.debug(content)
+      }
+    }
   } catch (error) {
     const message = extractErrorMessageFromK8sError(error)
     throw new Error(
