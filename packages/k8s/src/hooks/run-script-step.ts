@@ -28,20 +28,23 @@ import {
   JOB_CONTAINER_NAME
 } from './constants'
 import { MTLSCertAndPrivateKey } from '../k8s/certs'
+import { join } from 'path'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
   state
 ): Promise<void> {
+  const runnerDir = `/home/runner/_work/_temp/_runner_file_commands`
   const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
 
   core.debug('read files before')
   for (const file of files) {
-    core.debug(`content of  file ${file}`)
-    const stats = await fs.promises.stat(file);
+    const filePath = join(runnerDir, file)
+    core.debug(`content of file ${filePath}`)
+    const stats = fs.statSync(filePath)
 
     if (stats.isFile()) {
-      const content = fs.readFileSync(file).toString();
+      const content = fs.readFileSync(filePath).toString();
       core.debug(content)
     }
   }
@@ -173,12 +176,14 @@ async function runScriptStepInJobSet(
 
     const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
 
+    core.debug('read files after')
     for (const file of files) {
-      core.debug(`content of  file ${file}`)
-      const stats = await fs.promises.stat(file);
-
+      const filePath = join('/home/runner/_work/_temp/_runner_file_commands', file)
+      core.debug(`content of file ${filePath}`)
+      const stats = fs.statSync(filePath)
+  
       if (stats.isFile()) {
-        const content = fs.readFileSync(file).toString();
+        const content = fs.readFileSync(filePath).toString();
         core.debug(content)
       }
     }
