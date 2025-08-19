@@ -92,6 +92,7 @@ async function runScriptStepInJobSet(
     core.debug(`retrieving pods from JobSet ${jobSetName}`)
     const pods = await getPodsFromJobSet(jobSetName)
 
+    core.debug(`syncing runner folders to workflow pods for ${jobSetName}`)
     await Promise.all(
       pods.items.map(async pod => {
         try {
@@ -100,6 +101,19 @@ async function runScriptStepInJobSet(
             pod.status!!.podIP!!,
             rootCertClientAndKey
           )
+        } catch (error) {
+          const message = extractErrorMessageFromK8sError(error)
+          throw new Error(
+            `MultiHostError when execing the pod ${pod.metadata?.name} in JobSet ${jobSetName}: ${message}`
+          )
+        }
+      })
+    )
+
+    core.debug(`executing script for ${jobSetName}`)
+    await Promise.all(
+      pods.items.map(async pod => {
+        try {
           const jobCompletionIndex =
             pod.metadata?.annotations!![
               'batch.kubernetes.io/job-completion-index'
@@ -107,6 +121,8 @@ async function runScriptStepInJobSet(
           core.debug(
             `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
           )
+          // For the 0th index, don't put a prefix.
+          const jobPrefix = jobCompletionIndex ? `job-${jobCompletionIndex}: ` : ''
           // TODO(quoct): Add a prefix to the log output
           return runScriptByGrpc(
             scriptContent,
@@ -116,7 +132,7 @@ async function runScriptStepInJobSet(
             pod.status!!.podIP!!,
             GRPC_SCRIPT_EXECUTOR_PORT,
             true,
-            `job-${jobCompletionIndex}: `
+            jobPrefix
           )
         } catch (error) {
           const message = extractErrorMessageFromK8sError(error)
