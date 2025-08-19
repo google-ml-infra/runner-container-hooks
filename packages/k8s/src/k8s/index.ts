@@ -936,7 +936,7 @@ export async function copyFromPod(sourcePathFolder: string, localPath: string, p
             if (errStream.size()) {
               const errString = stringify(errStream.getContentsAsString())
               core.debug(
-                `error 0 copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${errString}`
+                `error copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${errString}`
               )
               reject(new Error(`Error from cpToPod - details: \n ${errString}`))
             } else {
@@ -947,16 +947,15 @@ export async function copyFromPod(sourcePathFolder: string, localPath: string, p
       } catch (error) {
         const message = extractErrorMessageFromK8sError(error)
         core.debug(
-          `error 1 copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${message}`
+          `error copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${message}`
         )
         reject(error)
       }
     })
     core.info('finished copying ')
-    await sleep(100000)
   } catch (error) {
     core.debug(
-      `error 2 copying from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${error})}`
+      `error copying from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${error})}`
     )
   }
 }
