@@ -952,6 +952,12 @@ export async function copyFromPod(sourcePathFolder: string, localPath: string, p
         reject(error)
       }
     })
+    extract.on("error", err => {
+      core.debug(`Error extracting ${err}`)
+    })
+    extract.on("finish", () => {
+      core.debug("extract finished copying")
+    })
     core.info('finished copying ')
   } catch (error) {
     core.debug(
