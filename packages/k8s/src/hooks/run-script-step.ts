@@ -146,7 +146,7 @@ async function runScriptStepInJobSet(
     )
     core.debug(`syncing workflow pod to runner pod with copyFromPod`)
     await runScriptByGrpc(
-      'ls /__w/_temp/_runner_file_commands; echo "contents", cat /__w/_temp/_runner_file_commands/*',
+      'ls /__w/_temp/_runner_file_commands; echo "contents"; cat /__w/_temp/_runner_file_commands/*',
       rootCertClientAndKey.caCertAndkey.cert,
       rootCertClientAndKey.clientCertAndKey.cert,
       rootCertClientAndKey.clientCertAndKey.privateKey,
