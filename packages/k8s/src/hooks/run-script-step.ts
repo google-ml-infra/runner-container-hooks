@@ -37,18 +37,6 @@ async function runScriptStepWithGRPC(
   const runnerDir = `/home/runner/_work/_temp/_runner_file_commands`
   const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
 
-  core.debug('read files before')
-  for (const file of files) {
-    const filePath = join(runnerDir, file)
-    core.debug(`content of file ${filePath}`)
-    const stats = fs.statSync(filePath)
-
-    if (stats.isFile()) {
-      const content = fs.readFileSync(filePath).toString();
-      core.debug(content)
-    }
-  }
-
   const { entryPoint, entryPointArgs, environmentVariables } = args
   const scriptContent = getEntryPointScriptContent(
     args.workingDirectory,
@@ -61,7 +49,6 @@ async function runScriptStepWithGRPC(
   core.info('using script executor')
   const rootCertClientAndKey = await getRootCertClientCertAndKey()
   core.debug('successfully retrieved root cert, client and key')
-  core.info('script content is ' + scriptContent)
 
   if (getNumberOfHost() > 1) {
     return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
@@ -140,7 +127,6 @@ async function runScriptStepInJobSet(
           )
           // For the 0th index, don't put a prefix.
           const jobPrefix = jobCompletionIndex && Number(jobCompletionIndex) > 0 ? `job-${jobCompletionIndex}: ` : ''
-          core.info('job prefix is ' + jobPrefix)
           // TODO(quoct): Add a prefix to the log output
           return runScriptByGrpc(
             scriptContent,
@@ -160,33 +146,11 @@ async function runScriptStepInJobSet(
         }
       })
     )
+
     core.debug(`syncing workflow pod to runner pod with copyFromPod`)
-    await runScriptByGrpc(
-      'ls /__w/_temp/_runner_file_commands; echo "contents"; cat /__w/_temp/_runner_file_commands/*',
-      rootCertClientAndKey.caCertAndkey.cert,
-      rootCertClientAndKey.clientCertAndKey.cert,
-      rootCertClientAndKey.clientCertAndKey.privateKey,
-      pods.items[0].status!!.podIP!!,
-      GRPC_SCRIPT_EXECUTOR_PORT,
-      true
-    )
-    // We can just copy from one of the pod.
     await copyFromPod('/__w/_temp/_runner_file_commands', '/home/runner/_work/_temp/_runner_file_commands', pods.items[0].metadata!!.name!!, JOB_CONTAINER_NAME)
-    core.debug(`done copying`)
 
     const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands');
-
-    core.debug('read files after')
-    for (const file of files) {
-      const filePath = join('/home/runner/_work/_temp/_runner_file_commands', file)
-      core.debug(`content of file ${filePath}`)
-      const stats = fs.statSync(filePath)
-  
-      if (stats.isFile()) {
-        const content = fs.readFileSync(filePath).toString();
-        core.debug(content)
-      }
-    }
   } catch (error) {
     const message = extractErrorMessageFromK8sError(error)
     throw new Error(

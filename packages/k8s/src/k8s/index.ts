@@ -909,7 +909,9 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
   return clientCertDicts[certDictKey]
 }
 
-// Copy from files from sourcePath
+// Copy files from sourcePathFolder to localPath.
+// For example copyFromPod(/foo/bar, /bar, podName, containerName) will copy
+// all files in /foo/bar into /bar.
 export async function copyFromPod(sourcePathFolder: string, localPath: string, podName: string, containerName: string) {
   const command = ['tar', 'cf', '-', '-C', sourcePathFolder, "."]
   const errStream = new WritableStreamBuffer()
@@ -920,7 +922,7 @@ export async function copyFromPod(sourcePathFolder: string, localPath: string, p
   const extract = tar.extract(localPath)
 
   try {
-    core.info(`copying files from ${sourcePathFolder} to ${localPath}`)
+    core.debug(`copying files from ${sourcePathFolder} to ${localPath}`)
     await new Promise<void>(async (resolve, reject) => {
       try {
         await k8sExec.exec(
