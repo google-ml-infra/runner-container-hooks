@@ -921,7 +921,7 @@ export async function copyFromPod(sourcePathFolder: string, localPath: string, p
 
   try {
     core.info(`copying files from ${sourcePathFolder} to ${localPath}`)
-    await new Promise<void>(async (resolve, reject) => {
+    const execPromise = new Promise<void>(async (resolve, reject) => {
       try {
         await k8sExec.exec(
           namespace(),
@@ -940,7 +940,15 @@ export async function copyFromPod(sourcePathFolder: string, localPath: string, p
               )
               reject(new Error(`Error from cpToPod - details: \n ${errString}`))
             } else {
-              resolve()
+              core.debug('wait for extracting to finish')
+              extract.on("error", err => {
+                core.debug(`Error extracting ${err}`)
+                reject()
+              })
+              extract.on("finish", () => {
+                core.debug(`Extract finished copying `)
+                resolve()
+              })
             }
           }
         )
@@ -952,13 +960,6 @@ export async function copyFromPod(sourcePathFolder: string, localPath: string, p
         reject(error)
       }
     })
-    extract.on("error", err => {
-      core.debug(`Error extracting ${err}`)
-    })
-    extract.on("finish", () => {
-      core.debug("extract finished copying")
-    })
-    core.info('finished copying ')
   } catch (error) {
     core.debug(
       `error copying from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${error})}`
