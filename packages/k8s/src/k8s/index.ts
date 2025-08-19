@@ -909,8 +909,9 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
   return clientCertDicts[certDictKey]
 }
 
-export async function copyFromPod(sourcePath: string, localPath: string, podName: string, containerName: string) {
-  const command = ['tar', 'cf', '-', '-C', path.dirname(sourcePath), path.basename(sourcePath)]
+// Copy from files from sourcePath
+export async function copyFromPod(sourcePathFolder: string, localPath: string, podName: string, containerName: string) {
+  const command = ['tar', 'cf', '-', '-C', sourcePathFolder, "."]
   const errStream = new WritableStreamBuffer()
 
   if (!fs.existsSync(localPath)) {
@@ -919,7 +920,7 @@ export async function copyFromPod(sourcePath: string, localPath: string, podName
   const extract = tar.extract(localPath)
 
   try {
-    core.info(`copying to ${localPath} from ${sourcePath}`)
+    core.info(`copying files from ${sourcePathFolder} to ${localPath}`)
     await new Promise<void>(async (resolve, reject) => {
       try {
         await k8sExec.exec(
@@ -935,7 +936,7 @@ export async function copyFromPod(sourcePath: string, localPath: string, podName
             if (errStream.size()) {
               const errString = stringify(errStream.getContentsAsString())
               core.debug(
-                `error 0 copying to ${localPath} from ${sourcePath} in pod ${podName}: ${errString}`
+                `error 0 copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${errString}`
               )
               reject(new Error(`Error from cpToPod - details: \n ${errString}`))
             } else {
@@ -946,7 +947,7 @@ export async function copyFromPod(sourcePath: string, localPath: string, podName
       } catch (error) {
         const message = extractErrorMessageFromK8sError(error)
         core.debug(
-          `error 1 copying to ${localPath} from ${sourcePath} in pod ${podName}: ${message}`
+          `error 1 copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${message}`
         )
         reject(error)
       }
@@ -955,7 +956,7 @@ export async function copyFromPod(sourcePath: string, localPath: string, podName
     await sleep(100000)
   } catch (error) {
     core.debug(
-      `error 2 copying to ${localPath} from ${sourcePath} in pod ${podName}: ${error})}`
+      `error 2 copying from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${error})}`
     )
   }
 }
