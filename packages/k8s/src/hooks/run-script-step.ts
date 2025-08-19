@@ -17,7 +17,6 @@ import {
   getEntryPointScriptContent,
   getNumberOfHost,
   runScriptByGrpc,
-  sleep,
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
@@ -28,7 +27,6 @@ import {
   JOB_CONTAINER_NAME
 } from './constants'
 import { MTLSCertAndPrivateKey } from '../k8s/certs'
-import { join } from 'path'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
