@@ -155,7 +155,7 @@ async function prepareJobSet(
   extension?: k8s.V1PodTemplateSpec
 ): Promise<void> {
   const jobSetName = getJobSetName()
-  const noOfHosts = getNumberOfHost()
+  const noOfHosts = 1 // getNumberOfHost()
 
   const podSpec = await createPodSpec(jobContainer, [], null, extension)
   core.info(`creating JobSet ${jobSetName} for ${noOfHosts} hosts.`)
