@@ -122,7 +122,8 @@ async function runScriptStepInJobSet(
             `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
           )
           // For the 0th index, don't put a prefix.
-          const jobPrefix = jobCompletionIndex ? `job-${jobCompletionIndex}: ` : ''
+          const jobPrefix = jobCompletionIndex && Number(jobCompletionIndex) > 0 ? `job-${jobCompletionIndex}: ` : ''
+          core.info('job prefix is ' + jobPrefix)
           // TODO(quoct): Add a prefix to the log output
           return runScriptByGrpc(
             scriptContent,
