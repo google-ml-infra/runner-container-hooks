@@ -29,7 +29,7 @@ import {
 import { generateCerts, MTLSCertAndPrivateKey } from './certs'
 import { v4 as uuidv4 } from 'uuid'
 import * as fs from 'fs'
-import { join } from 'path'
+import * as path from 'path'
 
 const kc = new k8s.KubeConfig()
 
@@ -909,10 +909,9 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
 }
 
 export async function copyFromPod(sourcePath: string, localPath: string, podName: string, containerName: string) {
-//  const command = ['tar', 'cf', '-', '-C', leadingDirectory, sourcePath];
-  const command = ['tar', 'cf', '-', sourcePath]
+  const command = ['tar', 'cf', '-', '-C', path.dirname(sourcePath), path.basename(sourcePath)]
   const errStream = new WritableStreamBuffer()
-  const writerStream = fs.createWriteStream(join(localPath, `tmp-${uuidv4().substring(0, 5)}.tar`));
+  const writerStream = fs.createWriteStream(path.join(localPath, `tmp-${uuidv4().substring(0, 5)}.tar`));
 
   if (!fs.existsSync(localPath)) {
     fs.mkdirSync(localPath, { recursive: true})
