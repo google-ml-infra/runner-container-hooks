@@ -24,7 +24,8 @@ import {
   fixArgs,
   createScriptExecutorContainer,
   useScriptExecutor,
-  getNumberOfHost
+  getNumberOfHost,
+  sleep
 } from './utils'
 import { generateCerts, MTLSCertAndPrivateKey } from './certs'
 import { v4 as uuidv4 } from 'uuid'
@@ -911,7 +912,6 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
 export async function copyFromPod(sourcePath: string, localPath: string, podName: string, containerName: string) {
   const command = ['tar', 'cf', '-', '-C', path.dirname(sourcePath), path.basename(sourcePath)]
   const errStream = new WritableStreamBuffer()
-  const writerStream = fs.createWriteStream(path.join(localPath, `tmp-${uuidv4().substring(0, 5)}.tar`));
 
   if (!fs.existsSync(localPath)) {
     fs.mkdirSync(localPath, { recursive: true})
@@ -951,7 +951,8 @@ export async function copyFromPod(sourcePath: string, localPath: string, podName
         reject(error)
       }
     })
-    core.info('finished copying')
+    core.info('finished copying ')
+    await sleep(100000)
   } catch (error) {
     core.debug(
       `error 2 copying to ${localPath} from ${sourcePath} in pod ${podName}: ${error})}`
