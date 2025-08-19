@@ -921,7 +921,7 @@ export async function copyFromPod(sourcePathFolder: string, localPath: string, p
 
   try {
     core.info(`copying files from ${sourcePathFolder} to ${localPath}`)
-    const execPromise = new Promise<void>(async (resolve, reject) => {
+    await new Promise<void>(async (resolve, reject) => {
       try {
         await k8sExec.exec(
           namespace(),
