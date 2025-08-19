@@ -28,6 +28,7 @@ import {
 } from './utils'
 import { generateCerts, MTLSCertAndPrivateKey } from './certs'
 import { v4 as uuidv4 } from 'uuid'
+import { createWriteStream, readFileSync } from 'fs'
 
 const kc = new k8s.KubeConfig()
 
@@ -904,6 +905,52 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
     clientCertAndKey: { cert: clientCert, privateKey: clientKey }
   }
   return clientCertDicts[certDictKey]
+}
+
+export async function copyFromPod(sourcePath: string, localPath: string, podName: string, containerName: string) {
+  const command = ['tar', 'zcf', '-', sourcePath];
+  const writerStream = tar.extract(localPath);
+  const errStream = new WritableStreamBuffer();
+
+  try {
+    core.info(`copying to ${localPath} from ${sourcePath}`)
+    await new Promise<void>(async (resolve, reject) => {
+      try {
+        await k8sExec.exec(
+          namespace(),
+          podName,
+          containerName,
+          command,
+          writerStream,
+          errStream,
+          null,
+          false,
+          async () => {
+            if (errStream.size()) {
+              const errString = stringify(errStream.getContentsAsString())
+              core.debug(
+                `error copying to ${localPath} from ${sourcePath} in pod ${podName}: ${errString}`
+              )
+              reject(new Error(`Error from cpToPod - details: \n ${errString}`))
+            } else {
+              resolve()
+            }
+          }
+        )
+      } catch (error) {
+        const message = extractErrorMessageFromK8sError(error)
+        core.debug(
+          `error copying to ${localPath} from ${sourcePath} in pod ${podName}: ${message}`
+        )
+        reject(error)
+      }
+    })
+    core.debug('finished copying')
+  } catch (error) {
+    core.debug(
+      `error copying to ${localPath} from ${sourcePath} in pod ${podName}: ${error})}`
+    )
+  }
 }
 
 /**
