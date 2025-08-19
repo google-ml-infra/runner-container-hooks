@@ -907,8 +907,8 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
   return clientCertDicts[certDictKey]
 }
 
-export async function copyFromPod(sourcePath: string, localPath: string, podName: string, containerName: string) {
-  const command = ['tar', 'zcf', '-', sourcePath];
+export async function copyFromPod(leadingDirectory: string, sourcePath: string, localPath: string, podName: string, containerName: string) {
+  const command = ['tar', 'zcf', '-', '-C', leadingDirectory, sourcePath];
   const writerStream = tar.extract(localPath);
   const errStream = new WritableStreamBuffer();
 
@@ -928,7 +928,7 @@ export async function copyFromPod(sourcePath: string, localPath: string, podName
           async () => {
             if (errStream.size()) {
               const errString = stringify(errStream.getContentsAsString())
-              core.debug(
+              core.info(
                 `error copying to ${localPath} from ${sourcePath} in pod ${podName}: ${errString}`
               )
               reject(new Error(`Error from cpToPod - details: \n ${errString}`))
@@ -939,15 +939,15 @@ export async function copyFromPod(sourcePath: string, localPath: string, podName
         )
       } catch (error) {
         const message = extractErrorMessageFromK8sError(error)
-        core.debug(
+        core.info(
           `error copying to ${localPath} from ${sourcePath} in pod ${podName}: ${message}`
         )
         reject(error)
       }
     })
-    core.debug('finished copying')
+    core.info('finished copying')
   } catch (error) {
-    core.debug(
+    core.info(
       `error copying to ${localPath} from ${sourcePath} in pod ${podName}: ${error})}`
     )
   }
