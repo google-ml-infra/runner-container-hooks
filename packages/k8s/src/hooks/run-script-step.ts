@@ -146,7 +146,7 @@ async function runScriptStepInJobSet(
     )
     core.info(`syncing workflow pod to runner pod with copyFromPod`)
     // We can just copy from one of the pod.
-    await copyFromPod('/__w/_temp/', '_runner_file_commands', '/home/runner/_work/_temp/_runner_file_commands', pods.items[0].metadata!!.name!!, JOB_CONTAINER_NAME)
+    await copyFromPod('/__w/_temp/_runner_file_commands', '/home/runner/_work/_temp/_runner_file_commands', pods.items[0].metadata!!.name!!, JOB_CONTAINER_NAME)
   } catch (error) {
     const message = extractErrorMessageFromK8sError(error)
     throw new Error(
