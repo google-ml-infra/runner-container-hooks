@@ -397,7 +397,7 @@ export async function runScriptByGrpc(
       // Half a second wait in case the data event with the exit code did not get triggered yet.
       await sleep(500)
       if (streamOutputAndError) {
-        process.stdout.write(`${jobPrefix}Job exit code is ${exitCode}.`)
+        process.stdout.write(`${jobPrefix}Job exit code is ${exitCode}.\n`)
       }
       if (exitCode === 0) {
         resolve()
