@@ -148,7 +148,6 @@ async function runScriptStepInJobSet(
     // We can just copy from one of the pod.
     await copyFromPod('/__w/_temp/_runner_file_commands', '/home/runner/_work/_temp/_runner_file_commands', pods.items[0].metadata!!.name!!, JOB_CONTAINER_NAME)
     core.debug(`done copying`)
-    await sleep(50000)
   } catch (error) {
     const message = extractErrorMessageFromK8sError(error)
     throw new Error(
