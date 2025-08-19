@@ -25,7 +25,6 @@ import {
   createScriptExecutorContainer,
   useScriptExecutor,
   getNumberOfHost,
-  sleep
 } from './utils'
 import { generateCerts, MTLSCertAndPrivateKey } from './certs'
 import { v4 as uuidv4 } from 'uuid'
