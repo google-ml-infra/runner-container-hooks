@@ -152,15 +152,17 @@ async function runScriptStepInJobSet(
   )
 
   for (let i = 1; i < pods.items.length; i += 1) {
-    process.stdout.write(`job ${i} output: \n`)
+    process.stdout.write(`::group::job ${i} output`)
     // The file should fit in the buffer.
     process.stdout.write(
       fs.readFileSync(join(tempTestDir, `${jobSetName}-${i}.out`))
     )
-    process.stdout.write(`job ${i} error: \n`)
+    process.stdout.write(`::endgroup::`)
+    process.stdout.write(`::group::job ${i} error`)
     process.stderr.write(
       fs.readFileSync(join(tempTestDir, `${jobSetName}-${i}.err`))
     )
+    process.stdout.write(`::endgroup::`)
     indexToStreamMap[i][0].close()
     indexToStreamMap[i][1].close()
   }

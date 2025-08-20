@@ -391,11 +391,9 @@ export async function runScriptByGrpc(
       }
 
       if (response.has_output && outputStream) {
-        core.debug('writing output')
         outputStream.write(`${response.output}`)
       }
       if (response.has_error && errStream) {
-        core.debug('writing error')
         errStream.write(`${response.error}`)
       }
     })
@@ -404,12 +402,14 @@ export async function runScriptByGrpc(
       // Half a second wait in case the data event with the exit code did not get triggered yet.
       await sleep(500)
       if (outputStream) {
-        outputStream.write(`Job exit code is ${exitCode}.\n`)
+        core.debug(`Command ${command} exit code is ${exitCode}.\n`)
       }
       if (exitCode === 0) {
         resolve()
       } else {
-        reject(new Error(`Job failed with exit code ${exitCode}.`))
+        reject(
+          new Error(`Command ${command} failed with exit code ${exitCode}.`)
+        )
       }
     })
 
