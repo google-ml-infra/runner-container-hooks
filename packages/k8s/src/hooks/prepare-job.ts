@@ -205,7 +205,7 @@ async function prepareJobSet(
     throw new Error(`failed to determine if the pod is alpine: ${message}`)
   }
 
-  core.info('pods from jobset are now online ')
+  core.debug('pods from jobset are now online ')
   generateResponseFile(responseFile, args, createdPod, isAlpine)
 }
 
