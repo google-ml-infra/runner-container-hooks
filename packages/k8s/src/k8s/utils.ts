@@ -344,7 +344,7 @@ export async function sleep(ms: number): Promise<void> {
 /**
  * Invoke GRPC server at ip_address:grpc_port to run a command.
  * Stream output and error from the command to the console by default.
- * Also appends a jobPrefix string to the output if provided.
+ * Also appends a jobSuffix string to the output if provided.
  */
 export async function runScriptByGrpc(
   command: string,
@@ -354,7 +354,7 @@ export async function runScriptByGrpc(
   ip: string,
   grpc_port = 50051,
   streamOutputAndError = true,
-  jobPrefix = ''
+  jobSuffix = ''
 ): Promise<void> {
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
@@ -374,7 +374,7 @@ export async function runScriptByGrpc(
     }
   )
 
-  core.debug(`executing script ${command} for job ${jobPrefix}`)
+  core.debug(`executing script ${command} for job ${jobSuffix}`)
   // TODO(quoct): Add logic to prevent duplicate execution using the `id` field.
   const call = client.ExecuteScript(
     new script_executor.ScriptRequest({ script: command })
@@ -387,24 +387,10 @@ export async function runScriptByGrpc(
       }
 
       if (response.has_output && streamOutputAndError) {
-        let trimOutput = response.output.trimStart()
-        // For most workflow command, we can put the jobPrefix at the end.
-        // TODO(quoct): Handle the group workflow command.
-        const isGroupCmd =
-          trimOutput.startsWith('::group') ||
-          trimOutput.startsWith('::endgroup')
-        const shouldSwap =
-          jobPrefix.length > 1 && trimOutput.startsWith('::') && !isGroupCmd
-
-        process.stdout.write(
-          shouldSwap
-            ? `${response.output} (${jobPrefix})`
-            : `(${jobPrefix}): ${response.output}`
-        )
+        process.stdout.write(`${response.output} (${jobSuffix})`)
       }
       if (response.has_error && streamOutputAndError) {
-        core.info('write error')
-        process.stderr.write(`${jobPrefix}${response.error}`)
+        process.stderr.write(`${response.error} (${jobSuffix})`)
       }
     })
 
@@ -412,17 +398,19 @@ export async function runScriptByGrpc(
       // Half a second wait in case the data event with the exit code did not get triggered yet.
       await sleep(500)
       if (streamOutputAndError) {
-        process.stdout.write(`${jobPrefix}Job exit code is ${exitCode}.\n`)
+        process.stdout.write(`Job exit code is ${exitCode} (${jobSuffix}).\n`)
       }
       if (exitCode === 0) {
         resolve()
       } else {
-        reject(new Error(`${jobPrefix}Job failed with exit code ${exitCode}.`))
+        reject(
+          new Error(`Job failed with exit code ${exitCode} (${jobSuffix}).`)
+        )
       }
     })
 
     call.on('error', (err: any) => {
-      const errorMessage = `${jobPrefix}Error execing ${command}: ${err}`
+      const errorMessage = `Error execing (${jobSuffix}) ${command}: ${err}`
       if (streamOutputAndError) {
         process.stdout.write(errorMessage)
       }
