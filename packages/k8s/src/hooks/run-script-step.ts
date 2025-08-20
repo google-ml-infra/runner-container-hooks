@@ -157,14 +157,14 @@ async function runScriptStepInJobSet(
       join(tempTestDir, `${jobSetName}-${i}.out`)
     )
     if (jobOutput.length) {
-      core.notice(`Job ${i} output: \n`)
+      core.notice(`Job ${i} output`)
       process.stdout.write(jobOutput)
     }
     const jobError = fs.readFileSync(
       join(tempTestDir, `${jobSetName}-${i}.err`)
     )
     if (jobError.length) {
-      core.warning(`Job ${i} error: \n`)
+      core.warning(`Job ${i} error`)
       process.stderr.write(jobError)
     }
     indexToStreamMap[i][0].close()
