@@ -396,11 +396,11 @@ export async function runScriptByGrpc(
           jobPrefix.length > 1 &&
           response.output.startsWith('::') &&
           !isGroupCmd
-        core.info("response output is " + response.output + " should swap is " + shouldSwap)
+
         process.stdout.write(
           shouldSwap
-            ? `${response.output}${jobPrefix}`
-            : `${jobPrefix}${response.output}`
+            ? `${response.output} (${jobPrefix})`
+            : `(${jobPrefix}): ${response.output}`
         )
       }
       if (response.has_error && streamOutputAndError) {

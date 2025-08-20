@@ -123,9 +123,7 @@ async function runScriptStepInJobSet(
           core.debug(
             `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
           )
-          // For the 0th index, don't put a prefix.
-          // const jobPrefix = jobCompletionIndex && Number(jobCompletionIndex) > 0 ? `job-${jobCompletionIndex}: ` : ''
-          // TODO(quoct): Add a prefix to the log output
+
           return runScriptByGrpc(
             scriptContent,
             rootCertClientAndKey.caCertAndkey.cert,
@@ -134,7 +132,7 @@ async function runScriptStepInJobSet(
             pod.status!!.podIP!!,
             GRPC_SCRIPT_EXECUTOR_PORT,
             true,
-            `(job-${jobCompletionIndex}): `
+            `job-${jobCompletionIndex} `
           )
         } catch (error) {
           const message = extractErrorMessageFromK8sError(error)
