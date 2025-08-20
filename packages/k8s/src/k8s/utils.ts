@@ -385,8 +385,23 @@ export async function runScriptByGrpc(
       if (response.has_code) {
         exitCode = response.code
       }
+
       if (response.has_output && streamOutputAndError) {
-        process.stdout.write(`${jobPrefix}${response.output}`)
+        // For most workflow command, we can put the jobPrefix at the end.
+        // TODO(quoct): Handle the group workflow command.
+        const isGroupCmd =
+          response.output.startsWith('::group') ||
+          response.output.startsWith('::endgroup')
+        const shouldSwap =
+          jobPrefix.length > 1 &&
+          response.output.startsWith('::') &&
+          !isGroupCmd
+
+        process.stdout.write(
+          shouldSwap
+            ? `${response.output}${jobPrefix}`
+            : `${jobPrefix}${response.output}`
+        )
       }
       if (response.has_error && streamOutputAndError) {
         process.stderr.write(`${jobPrefix}${response.error}`)

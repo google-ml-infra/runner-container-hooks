@@ -166,10 +166,7 @@ async function syncRunnerFolderToWorkflowPod(
   podIp: string,
   rootCertClientAndKey: MTLSCertAndPrivateKey
 ): Promise<void> {
-  // TODO(quoct): Check if we can optimize and not delete the _actions folder every time.
-  core.debug(
-    'deleting _temp folder, /github/workflow/, _actions and /github/home/ folders'
-  )
+  core.debug('create folders used by GitHub Actions.')
   const command = `
 mkdir -p /github/home;
 mkdir -p /github/workflow;
@@ -187,7 +184,7 @@ mkdir -p /__w/_tool`
     false
   )
 
-  core.info(
+  core.debug(
     `copying temp folder for ${podName} in ${JOB_CONTAINER_NAME} container`
   )
   await cpToPod(
@@ -198,7 +195,7 @@ mkdir -p /__w/_tool`
   )
 
   if (fs.existsSync('/home/runner/_work/_actions')) {
-    core.info('copying /home/runner/_work/_actions')
+    core.debug('copying /home/runner/_work/_actions')
     await cpToPod(
       podName,
       JOB_CONTAINER_NAME,
@@ -208,7 +205,7 @@ mkdir -p /__w/_tool`
   }
 
   if (fs.existsSync('/home/runner/_work/_tool')) {
-    core.info('copying /home/runner/_work/_tool')
+    core.debug('copying /home/runner/_work/_tool')
     await cpToPod(
       podName,
       JOB_CONTAINER_NAME,
@@ -217,7 +214,7 @@ mkdir -p /__w/_tool`
     )
   }
 
-  core.info('copying github_home and github_workflow folder')
+  core.debug('copying github_home and github_workflow folder')
   await runScriptByGrpc(
     'cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow',
     rootCertClientAndKey.caCertAndkey.cert,
