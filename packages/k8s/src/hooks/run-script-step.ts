@@ -151,18 +151,22 @@ async function runScriptStepInJobSet(
     })
   )
 
+  // Output the output and error for the rest of the jobs.
   for (let i = 1; i < pods.items.length; i += 1) {
-    core.startGroup(`job ${i} output`)
-    // The file should fit in the buffer.
-    process.stdout.write(
-      fs.readFileSync(join(tempTestDir, `${jobSetName}-${i}.out`))
+    const jobOutput = fs.readFileSync(
+      join(tempTestDir, `${jobSetName}-${i}.out`)
     )
-    core.endGroup()
-    core.startGroup(`job ${i} error`)
-    process.stderr.write(
-      fs.readFileSync(join(tempTestDir, `${jobSetName}-${i}.err`))
+    if (jobOutput.length) {
+      process.stdout.write(`job ${i} output: \n`)
+      process.stdout.write(jobOutput)
+    }
+    const jobError = fs.readFileSync(
+      join(tempTestDir, `${jobSetName}-${i}.err`)
     )
-    core.endGroup()
+    if (jobError.length) {
+      process.stderr.write(`job ${i} error: \n`)
+      process.stderr.write(jobError)
+    }
     indexToStreamMap[i][0].close()
     indexToStreamMap[i][1].close()
   }
