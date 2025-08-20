@@ -391,9 +391,11 @@ export async function runScriptByGrpc(
       }
 
       if (response.has_output && outputStream) {
+        core.debug('writing output')
         outputStream.write(`${response.output}`)
       }
       if (response.has_error && errStream) {
+        core.debug('writing error')
         errStream.write(`${response.error}`)
       }
     })
