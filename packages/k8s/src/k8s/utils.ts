@@ -391,15 +391,12 @@ export async function runScriptByGrpc(
         // For most workflow command, we can put the jobPrefix at the end.
         // TODO(quoct): Handle the group workflow command.
         const isGroupCmd =
-        trimOutput.startsWith('::group') ||
-        trimOutput.startsWith('::endgroup')
+          trimOutput.startsWith('::group') ||
+          trimOutput.startsWith('::endgroup')
         const shouldSwap =
-          jobPrefix.length > 1 &&
-          trimOutput.startsWith('::') &&
-          !isGroupCmd
+          jobPrefix.length > 1 && trimOutput.startsWith('::') && !isGroupCmd
 
-          core.info('write output ' + shouldSwap)
-          process.stdout.write(
+        process.stdout.write(
           shouldSwap
             ? `${response.output} (${jobPrefix})`
             : `(${jobPrefix}): ${response.output}`
