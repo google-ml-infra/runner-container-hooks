@@ -27,6 +27,9 @@ import {
   JOB_CONTAINER_NAME
 } from './constants'
 import { MTLSCertAndPrivateKey } from '../k8s/certs'
+import { tmpdir } from 'os'
+import { join } from 'path'
+import { Writable } from 'stream'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
@@ -49,7 +52,14 @@ async function runScriptStepWithGRPC(
   core.debug('successfully retrieved root cert, client and key')
 
   if (getNumberOfHost() > 1) {
-    return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
+    try {
+      return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
+    } catch (error) {
+      const message = extractErrorMessageFromK8sError(error)
+      throw new Error(
+        `MultiHostError when execing pods in JobSet ${getJobSetName()}: ${message}`
+      )
+    }
   }
 
   // This will throw after retrying with back off for up to 60s.
@@ -89,71 +99,79 @@ async function runScriptStepInJobSet(
     throw new Error(`JobSet ${jobSetName} does not exist.`)
   }
 
-  try {
-    core.debug(`retrieving pods from JobSet ${jobSetName}`)
-    const pods = await getPodsFromJobSet(jobSetName)
+  core.debug(`retrieving pods from JobSet ${jobSetName}`)
+  const pods = await getPodsFromJobSet(jobSetName)
 
-    core.debug(`syncing runner folders to workflow pods for ${jobSetName}`)
-    await Promise.all(
-      pods.items.map(async pod => {
-        try {
-          await syncRunnerFolderToWorkflowPod(
-            pod.metadata?.name!!,
-            pod.status!!.podIP!!,
-            rootCertClientAndKey
-          )
-        } catch (error) {
-          const message = extractErrorMessageFromK8sError(error)
-          throw new Error(
-            `MultiHostError when execing the pod ${pod.metadata?.name} in JobSet ${jobSetName}: ${message}`
-          )
-        }
-      })
-    )
+  core.debug(`syncing runner folders to workflow pods for ${jobSetName}`)
+  await Promise.all(
+    pods.items.map(async pod => {
+      core.debug(`sync runner folder to workflow pod ${pod.metadata?.name}`)
+      await syncRunnerFolderToWorkflowPod(
+        pod.metadata?.name!!,
+        pod.status!!.podIP!!,
+        rootCertClientAndKey
+      )
+    })
+  )
 
-    core.debug(`executing script for ${jobSetName}`)
-    await Promise.all(
-      pods.items.map(async pod => {
-        try {
-          const jobCompletionIndex =
-            pod.metadata?.annotations!![
-              'batch.kubernetes.io/job-completion-index'
-            ]
-          core.debug(
-            `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
-          )
-
-          if (Number(jobCompletionIndex) === 0) {
-            return runScriptByGrpc(
-              scriptContent,
-              rootCertClientAndKey.caCertAndkey.cert,
-              rootCertClientAndKey.clientCertAndKey.cert,
-              rootCertClientAndKey.clientCertAndKey.privateKey,
-              pod.status!!.podIP!!
-            )
-          }
-        } catch (error) {
-          const message = extractErrorMessageFromK8sError(error)
-          throw new Error(
-            `MultiHostError when execing the pod ${pod.metadata?.name} in JobSet ${jobSetName}: ${message}`
-          )
-        }
-      })
-    )
-
-    core.debug(`syncing workflow pod to runner pod with copyFromPod`)
-    await copyFromPod(
-      '/__w/_temp/_runner_file_commands',
-      '/home/runner/_work/_temp/_runner_file_commands',
-      pods.items[0].metadata!!.name!!,
-      JOB_CONTAINER_NAME
-    )
-  } catch (error) {
-    const message = extractErrorMessageFromK8sError(error)
-    throw new Error(
-      `MultiHostError when execing pods in JobSet ${jobSetName}: ${message}`
-    )
+  const tempTestDir = fs.mkdtempSync(tmpdir())
+  const indexToStreamMap: Map<number, [output: Writable, errStream: Writable]> =
+    new Map()
+  for (let i = 0; i < pods.items.length; i += 1) {
+    indexToStreamMap[i] = [
+      i === 0
+        ? process.stdout
+        : fs.createWriteStream(join(tempTestDir, `${jobSetName}-${i}.out`)),
+      i === 0
+        ? process.stderr
+        : fs.createWriteStream(join(tempTestDir, `${jobSetName}-${i}.err`))
+    ]
   }
+
+  core.debug(`executing script for ${jobSetName}`)
+  await Promise.all(
+    pods.items.map(async pod => {
+      const jobCompletionIndex = Number(
+        pod.metadata?.annotations!!['batch.kubernetes.io/job-completion-index']
+      )
+      core.debug(
+        `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
+      )
+
+      return runScriptByGrpc(
+        scriptContent,
+        rootCertClientAndKey.caCertAndkey.cert,
+        rootCertClientAndKey.clientCertAndKey.cert,
+        rootCertClientAndKey.clientCertAndKey.privateKey,
+        pod.status!!.podIP!!,
+        GRPC_SCRIPT_EXECUTOR_PORT,
+        indexToStreamMap[jobCompletionIndex][0],
+        indexToStreamMap[jobCompletionIndex][1]
+      )
+    })
+  )
+
+  for (let i = 1; i < pods.items.length; i += 1) {
+    process.stdout.write(`job ${i} output: \n`)
+    // The file should fit in the buffer.
+    process.stdout.write(
+      fs.readFileSync(join(tempTestDir, `${jobSetName}-${i}.out`))
+    )
+    process.stdout.write(`job ${i} error: \n`)
+    process.stderr.write(
+      fs.readFileSync(join(tempTestDir, `${jobSetName}-${i}.err`))
+    )
+    indexToStreamMap[i][0].close()
+    indexToStreamMap[i][1].close()
+  }
+
+  core.debug(`syncing workflow pod to runner pod with copyFromPod`)
+  await copyFromPod(
+    '/__w/_temp/_runner_file_commands',
+    '/home/runner/_work/_temp/_runner_file_commands',
+    pods.items[0].metadata!!.name!!,
+    JOB_CONTAINER_NAME
+  )
 }
 
 async function syncRunnerFolderToWorkflowPod(

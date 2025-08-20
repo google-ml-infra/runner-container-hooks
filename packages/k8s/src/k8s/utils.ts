@@ -14,6 +14,7 @@ import {
   GRPC_SCRIPT_EXECUTOR_PORT
 } from '../hooks/constants'
 import { script_executor } from './script_executor'
+import { Writable } from 'stream'
 
 export const DEFAULT_CONTAINER_ENTRY_POINT_ARGS = [`-f`, `/dev/null`]
 export const DEFAULT_CONTAINER_ENTRY_POINT = 'tail'
@@ -356,8 +357,8 @@ export async function runScriptByGrpc(
   clientKey: string,
   ip: string,
   grpc_port = GRPC_SCRIPT_EXECUTOR_PORT,
-  outputStream: NodeJS.WriteStream | undefined = process.stdout, // eslint-disable-line no-undef
-  errStream: NodeJS.WriteStream | undefined = process.stderr // eslint-disable-line no-undef
+  outputStream: Writable | undefined = process.stdout,
+  errStream: Writable | undefined = process.stderr
 ): Promise<void> {
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
