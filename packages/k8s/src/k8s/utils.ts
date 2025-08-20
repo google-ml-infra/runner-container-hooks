@@ -387,14 +387,15 @@ export async function runScriptByGrpc(
       }
 
       if (response.has_output && streamOutputAndError) {
+        let trimOutput = response.output.trimStart()
         // For most workflow command, we can put the jobPrefix at the end.
         // TODO(quoct): Handle the group workflow command.
         const isGroupCmd =
-          response.output.startsWith('::group') ||
-          response.output.startsWith('::endgroup')
+        trimOutput.startsWith('::group') ||
+        trimOutput.startsWith('::endgroup')
         const shouldSwap =
           jobPrefix.length > 1 &&
-          response.output.startsWith('::') &&
+          trimOutput.startsWith('::') &&
           !isGroupCmd
 
           core.info('write output ' + shouldSwap)
