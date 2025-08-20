@@ -61,8 +61,7 @@ async function runScriptStepWithGRPC(
         rootCertClientAndKey.caCertAndkey.cert,
         rootCertClientAndKey.clientCertAndKey.cert,
         rootCertClientAndKey.clientCertAndKey.privateKey,
-        getServiceName(),
-        GRPC_SCRIPT_EXECUTOR_PORT
+        getServiceName()
       )
       break
     } catch (err) {
@@ -124,16 +123,15 @@ async function runScriptStepInJobSet(
             `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
           )
 
-          return runScriptByGrpc(
-            scriptContent,
-            rootCertClientAndKey.caCertAndkey.cert,
-            rootCertClientAndKey.clientCertAndKey.cert,
-            rootCertClientAndKey.clientCertAndKey.privateKey,
-            pod.status!!.podIP!!,
-            GRPC_SCRIPT_EXECUTOR_PORT,
-            true,
-            `job-${jobCompletionIndex}`
-          )
+          if (Number(jobCompletionIndex) === 0) {
+            return runScriptByGrpc(
+              scriptContent,
+              rootCertClientAndKey.caCertAndkey.cert,
+              rootCertClientAndKey.clientCertAndKey.cert,
+              rootCertClientAndKey.clientCertAndKey.privateKey,
+              pod.status!!.podIP!!
+            )
+          }
         } catch (error) {
           const message = extractErrorMessageFromK8sError(error)
           throw new Error(
@@ -158,7 +156,6 @@ async function runScriptStepInJobSet(
   }
 }
 
-// TODO(quoct): Check if we can optimize and not delete the _actions folder every time.
 async function syncRunnerFolderToWorkflowPod(
   podName: string,
   podIp: string,
@@ -179,7 +176,8 @@ mkdir -p /__w/_tool`
     rootCertClientAndKey.clientCertAndKey.privateKey,
     podIp,
     GRPC_SCRIPT_EXECUTOR_PORT,
-    false
+    undefined,
+    undefined
   )
 
   core.debug(
@@ -220,7 +218,8 @@ mkdir -p /__w/_tool`
     rootCertClientAndKey.clientCertAndKey.privateKey,
     podIp,
     GRPC_SCRIPT_EXECUTOR_PORT,
-    false
+    undefined,
+    undefined
   )
 }
 

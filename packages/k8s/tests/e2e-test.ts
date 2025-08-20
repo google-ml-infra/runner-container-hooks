@@ -134,7 +134,8 @@ describe('script-executor', () => {
           certs.caCertAndkey.cert,
           certs.clientCertAndKey.cert,
           certs.clientCertAndKey.privateKey,
-          'localhost'
+          'localhost',
+          50051
         )
       ).resolves.not.toThrow()
     } finally {
