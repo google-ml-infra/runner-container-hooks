@@ -114,7 +114,7 @@ async function runScriptStepInJobSet(
     })
   )
 
-  const tempTestDir = fs.mkdtempSync(tmpdir())
+  const tempTestDir = tmpdir()
   const indexToStreamMap: Map<number, [output: Writable, errStream: Writable]> =
     new Map()
   for (let i = 0; i < pods.items.length; i += 1) {
