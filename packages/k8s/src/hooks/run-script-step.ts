@@ -132,7 +132,7 @@ async function runScriptStepInJobSet(
             pod.status!!.podIP!!,
             GRPC_SCRIPT_EXECUTOR_PORT,
             true,
-            `job-${jobCompletionIndex} `
+            `job-${jobCompletionIndex}`
           )
         } catch (error) {
           const message = extractErrorMessageFromK8sError(error)
