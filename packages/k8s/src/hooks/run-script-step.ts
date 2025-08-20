@@ -5,6 +5,7 @@ import * as core from '@actions/core'
 import { RunScriptStepArgs } from 'hooklib'
 import {
   BackOffManager,
+  copyFromPod,
   cpToPod,
   execPodStep,
   extractErrorMessageFromK8sError,
@@ -16,7 +17,6 @@ import {
   getEntryPointScriptContent,
   getNumberOfHost,
   runScriptByGrpc,
-  sleep,
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
@@ -27,11 +27,17 @@ import {
   JOB_CONTAINER_NAME
 } from './constants'
 import { MTLSCertAndPrivateKey } from '../k8s/certs'
+import { tmpdir } from 'os'
+import { join } from 'path'
+import { Writable } from 'stream'
 
 async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
   state
 ): Promise<void> {
+  const runnerDir = `/home/runner/_work/_temp/_runner_file_commands`
+  const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands')
+
   const { entryPoint, entryPointArgs, environmentVariables } = args
   const scriptContent = getEntryPointScriptContent(
     args.workingDirectory,
@@ -46,7 +52,14 @@ async function runScriptStepWithGRPC(
   core.debug('successfully retrieved root cert, client and key')
 
   if (getNumberOfHost() > 1) {
-    return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
+    try {
+      return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
+    } catch (error) {
+      const message = extractErrorMessageFromK8sError(error)
+      throw new Error(
+        `MultiHostError when execing pods in JobSet ${getJobSetName()}: ${message}`
+      )
+    }
   }
 
   // This will throw after retrying with back off for up to 60s.
@@ -58,8 +71,7 @@ async function runScriptStepWithGRPC(
         rootCertClientAndKey.caCertAndkey.cert,
         rootCertClientAndKey.clientCertAndKey.cert,
         rootCertClientAndKey.clientCertAndKey.privateKey,
-        getServiceName(),
-        GRPC_SCRIPT_EXECUTOR_PORT
+        getServiceName()
       )
       break
     } catch (err) {
@@ -87,67 +99,94 @@ async function runScriptStepInJobSet(
     throw new Error(`JobSet ${jobSetName} does not exist.`)
   }
 
-  try {
-    core.debug(`retrieving pods from JobSet ${jobSetName}`)
-    const pods = await getPodsFromJobSet(jobSetName)
+  core.debug(`retrieving pods from JobSet ${jobSetName}`)
+  const pods = await getPodsFromJobSet(jobSetName)
 
-    await Promise.all(
-      pods.items.map(async pod => {
-        try {
-          await syncRunnerFolderToWorkflowPod(
-            pod.metadata?.name!!,
-            pod.status!!.podIP!!,
-            rootCertClientAndKey
-          )
-          const jobCompletionIndex =
-            pod.metadata?.annotations!![
-              'batch.kubernetes.io/job-completion-index'
-            ]
-          core.debug(
-            `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
-          )
-          // TODO(quoct): Add a prefix to the log output
-          return runScriptByGrpc(
-            scriptContent,
-            rootCertClientAndKey.caCertAndkey.cert,
-            rootCertClientAndKey.clientCertAndKey.cert,
-            rootCertClientAndKey.clientCertAndKey.privateKey,
-            pod.status!!.podIP!!,
-            GRPC_SCRIPT_EXECUTOR_PORT,
-            true,
-            `job-${jobCompletionIndex}: `
-          )
-        } catch (error) {
-          const message = extractErrorMessageFromK8sError(error)
-          throw new Error(
-            `MultiHostError when execing the pod ${pod.metadata?.name} in JobSet ${jobSetName}: ${message}`
-          )
-        }
-      })
-    )
-  } catch (error) {
-    const message = extractErrorMessageFromK8sError(error)
-    throw new Error(
-      `MultiHostError when execing pods in JobSet ${jobSetName}: ${message}`
-    )
+  core.debug(`syncing runner folders to workflow pods for ${jobSetName}`)
+  await Promise.all(
+    pods.items.map(async pod => {
+      core.debug(`sync runner folder to workflow pod ${pod.metadata?.name}`)
+      await syncRunnerFolderToWorkflowPod(
+        pod.metadata?.name!!,
+        pod.status!!.podIP!!,
+        rootCertClientAndKey
+      )
+    })
+  )
+
+  const tempTestDir = tmpdir()
+  const indexToStreamMap: Map<number, [output: Writable, errStream: Writable]> =
+    new Map()
+  for (let i = 0; i < pods.items.length; i += 1) {
+    indexToStreamMap[i] = [
+      i === 0
+        ? process.stdout
+        : fs.createWriteStream(join(tempTestDir, `${jobSetName}-${i}.out`)),
+      i === 0
+        ? process.stderr
+        : fs.createWriteStream(join(tempTestDir, `${jobSetName}-${i}.err`))
+    ]
   }
+
+  core.debug(`executing script for ${jobSetName}`)
+  await Promise.all(
+    pods.items.map(async pod => {
+      const jobCompletionIndex = Number(
+        pod.metadata?.annotations!!['batch.kubernetes.io/job-completion-index']
+      )
+      core.debug(
+        `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
+      )
+
+      return runScriptByGrpc(
+        scriptContent,
+        rootCertClientAndKey.caCertAndkey.cert,
+        rootCertClientAndKey.clientCertAndKey.cert,
+        rootCertClientAndKey.clientCertAndKey.privateKey,
+        pod.status!!.podIP!!,
+        GRPC_SCRIPT_EXECUTOR_PORT,
+        indexToStreamMap[jobCompletionIndex][0],
+        indexToStreamMap[jobCompletionIndex][1]
+      )
+    })
+  )
+
+  // Output the output and error for the rest of the jobs.
+  for (let i = 1; i < pods.items.length; i += 1) {
+    const jobOutput = fs.readFileSync(
+      join(tempTestDir, `${jobSetName}-${i}.out`)
+    )
+    if (jobOutput.length) {
+      core.notice(`Job ${i} output`)
+      process.stdout.write(jobOutput)
+    }
+    const jobError = fs.readFileSync(
+      join(tempTestDir, `${jobSetName}-${i}.err`)
+    )
+    if (jobError.length) {
+      core.warning(`Job ${i} error`)
+      process.stderr.write(jobError)
+    }
+    indexToStreamMap[i][0].close()
+    indexToStreamMap[i][1].close()
+  }
+
+  core.debug(`syncing workflow pod to runner pod with copyFromPod`)
+  await copyFromPod(
+    '/__w/_temp/_runner_file_commands',
+    '/home/runner/_work/_temp/_runner_file_commands',
+    pods.items[0].metadata!!.name!!,
+    JOB_CONTAINER_NAME
+  )
 }
 
-// TODO(quoct): Check if we can optimize and not delete the _actions folder every time.
 async function syncRunnerFolderToWorkflowPod(
   podName: string,
   podIp: string,
   rootCertClientAndKey: MTLSCertAndPrivateKey
 ): Promise<void> {
-  // TODO(quoct): Check if we can optimize and not delete the _actions folder every time.
-  core.debug(
-    'deleting _temp folder, /github/workflow/, _actions and /github/home/ folders'
-  )
-  const command = `rm -rf /__w/_tool;
-rm -rf /__w/_actions;
-rm -rf /__w/_temp/*;
-rm -rf /github/home/*;
-rm -rf /github/workflow/*;
+  core.debug('create folders used by GitHub Actions.')
+  const command = `
 mkdir -p /github/home;
 mkdir -p /github/workflow;
 mkdir -p /__w/_temp;
@@ -161,10 +200,11 @@ mkdir -p /__w/_tool`
     rootCertClientAndKey.clientCertAndKey.privateKey,
     podIp,
     GRPC_SCRIPT_EXECUTOR_PORT,
-    false
+    undefined,
+    undefined
   )
 
-  core.info(
+  core.debug(
     `copying temp folder for ${podName} in ${JOB_CONTAINER_NAME} container`
   )
   await cpToPod(
@@ -175,7 +215,7 @@ mkdir -p /__w/_tool`
   )
 
   if (fs.existsSync('/home/runner/_work/_actions')) {
-    core.info('copying /home/runner/_work/_actions')
+    core.debug('copying /home/runner/_work/_actions')
     await cpToPod(
       podName,
       JOB_CONTAINER_NAME,
@@ -185,7 +225,7 @@ mkdir -p /__w/_tool`
   }
 
   if (fs.existsSync('/home/runner/_work/_tool')) {
-    core.info('copying /home/runner/_work/_tool')
+    core.debug('copying /home/runner/_work/_tool')
     await cpToPod(
       podName,
       JOB_CONTAINER_NAME,
@@ -194,7 +234,7 @@ mkdir -p /__w/_tool`
     )
   }
 
-  core.info('copying github_home and github_workflow folder')
+  core.debug('copying github_home and github_workflow folder')
   await runScriptByGrpc(
     'cp -a /__w/_temp/_github_home/. /github/home/; cp -a /__w/_temp/_github_workflow/. /github/workflow',
     rootCertClientAndKey.caCertAndkey.cert,
@@ -202,7 +242,8 @@ mkdir -p /__w/_tool`
     rootCertClientAndKey.clientCertAndKey.privateKey,
     podIp,
     GRPC_SCRIPT_EXECUTOR_PORT,
-    false
+    undefined,
+    undefined
   )
 }
 

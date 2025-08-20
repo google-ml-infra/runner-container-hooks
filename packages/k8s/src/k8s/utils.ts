@@ -9,8 +9,12 @@ import * as path from 'path'
 import { Mount } from 'hooklib'
 import { v1 as uuidv4 } from 'uuid'
 import { POD_VOLUME_NAME } from './index'
-import { CONTAINER_EXTENSION_PREFIX } from '../hooks/constants'
+import {
+  CONTAINER_EXTENSION_PREFIX,
+  GRPC_SCRIPT_EXECUTOR_PORT
+} from '../hooks/constants'
 import { script_executor } from './script_executor'
+import { Writable } from 'stream'
 
 export const DEFAULT_CONTAINER_ENTRY_POINT_ARGS = [`-f`, `/dev/null`]
 export const DEFAULT_CONTAINER_ENTRY_POINT = 'tail'
@@ -344,7 +348,7 @@ export async function sleep(ms: number): Promise<void> {
 /**
  * Invoke GRPC server at ip_address:grpc_port to run a command.
  * Stream output and error from the command to the console by default.
- * Also appends a jobPrefix string to the output if provided.
+ * Also appends a jobSuffix string to the output if provided.
  */
 export async function runScriptByGrpc(
   command: string,
@@ -352,9 +356,9 @@ export async function runScriptByGrpc(
   clientCert: string,
   clientKey: string,
   ip: string,
-  grpc_port = 50051,
-  streamOutputAndError = true,
-  jobPrefix = ''
+  grpc_port = GRPC_SCRIPT_EXECUTOR_PORT,
+  outputStream: Writable | undefined = process.stdout,
+  errStream: Writable | undefined = process.stderr
 ): Promise<void> {
   const client = new script_executor.ScriptExecutorClient(
     `${ip}:${grpc_port}`,
@@ -374,7 +378,7 @@ export async function runScriptByGrpc(
     }
   )
 
-  core.debug(`executing script ${command} for job ${jobPrefix}`)
+  core.debug(`executing script ${command}`)
   // TODO(quoct): Add logic to prevent duplicate execution using the `id` field.
   const call = client.ExecuteScript(
     new script_executor.ScriptRequest({ script: command })
@@ -385,31 +389,34 @@ export async function runScriptByGrpc(
       if (response.has_code) {
         exitCode = response.code
       }
-      if (response.has_output && streamOutputAndError) {
-        process.stdout.write(`${jobPrefix}${response.output}`)
+
+      if (response.has_output && outputStream) {
+        outputStream.write(`${response.output}`)
       }
-      if (response.has_error && streamOutputAndError) {
-        process.stderr.write(`${jobPrefix}${response.error}`)
+      if (response.has_error && errStream) {
+        errStream.write(`${response.error}`)
       }
     })
 
     call.on('end', async () => {
       // Half a second wait in case the data event with the exit code did not get triggered yet.
       await sleep(500)
-      if (streamOutputAndError) {
-        process.stdout.write(`${jobPrefix}Job exit code is ${exitCode}.`)
+      if (outputStream) {
+        core.debug(`Command ${command} exit code is ${exitCode}.\n`)
       }
       if (exitCode === 0) {
         resolve()
       } else {
-        reject(new Error(`${jobPrefix}Job failed with exit code ${exitCode}.`))
+        reject(
+          new Error(`Command ${command} failed with exit code ${exitCode}.`)
+        )
       }
     })
 
     call.on('error', (err: any) => {
-      const errorMessage = `${jobPrefix}Error execing ${command}: ${err}`
-      if (streamOutputAndError) {
-        process.stdout.write(errorMessage)
+      const errorMessage = `Error execing ${command}: ${err}`
+      if (errStream) {
+        errStream.write(errorMessage)
       }
       reject(new Error(errorMessage))
     })

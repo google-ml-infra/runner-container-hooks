@@ -28,6 +28,7 @@ import {
 } from './utils'
 import { generateCerts, MTLSCertAndPrivateKey } from './certs'
 import { v4 as uuidv4 } from 'uuid'
+import * as fs from 'fs'
 
 const kc = new k8s.KubeConfig()
 
@@ -906,6 +907,65 @@ export async function getRootCertClientCertAndKey(): Promise<MTLSCertAndPrivateK
   return clientCertDicts[certDictKey]
 }
 
+// Copy files from sourcePathFolder to localPath.
+// For example copyFromPod(/foo/bar, /bar, podName, containerName) will copy
+// all files in /foo/bar into /bar.
+export async function copyFromPod(
+  sourcePathFolder: string,
+  localPath: string,
+  podName: string,
+  containerName: string
+): Promise<void> {
+  const command = ['tar', 'cf', '-', '-C', sourcePathFolder, '.']
+  const errStream = new WritableStreamBuffer()
+
+  if (!fs.existsSync(localPath)) {
+    fs.mkdirSync(localPath, { recursive: true })
+  }
+  const extract = tar.extract(localPath)
+
+  core.debug(`copying files from ${sourcePathFolder} to ${localPath}`)
+  await new Promise<void>(async (resolve, reject) => {
+    try {
+      await k8sExec.exec(
+        namespace(),
+        podName,
+        containerName,
+        command,
+        extract,
+        errStream,
+        null,
+        false,
+        async () => {
+          if (errStream.size()) {
+            const errString = stringify(errStream.getContentsAsString())
+            core.debug(
+              `error copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${errString}`
+            )
+            reject(new Error(`Error from cpToPod - details: \n ${errString}`))
+          } else {
+            core.debug('wait for extraction to finish')
+            extract.on('error', err => {
+              core.debug(`error extracting ${err}`)
+              reject(new Error(`error extracting ${err}`))
+            })
+            extract.on('finish', () => {
+              core.debug(`extract finished copying `)
+              resolve()
+            })
+          }
+        }
+      )
+    } catch (error) {
+      const message = extractErrorMessageFromK8sError(error)
+      core.debug(
+        `error copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${message}`
+      )
+      reject(error)
+    }
+  })
+}
+
 /**
  * Pack and copy srcPath (in the current host) over to tgtPath in the
  * destination container containerName in pod PodName.
@@ -921,45 +981,40 @@ export async function cpToPod(
   const command = ['tar', 'xf', '-', '-C', tgtPath]
   const readStream = tar.pack(srcPath)
   const errStream = new WritableStreamBuffer()
-  try {
-    core.debug(`copying to ${tgtPath} in ${containerName} in ${podName}`)
-    await new Promise<void>(async (resolve, reject) => {
-      try {
-        await k8sExec.exec(
-          namespace(),
-          podName,
-          containerName,
-          command,
-          null,
-          errStream,
-          readStream,
-          false,
-          async () => {
-            if (errStream.size()) {
-              const errString = stringify(errStream.getContentsAsString())
-              core.debug(
-                `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${errString}`
-              )
-              reject(new Error(`Error from cpToPod - details: \n ${errString}`))
-            } else {
-              resolve()
-            }
+
+  core.debug(`copying to ${tgtPath} in ${containerName} in ${podName}`)
+  await new Promise<void>(async (resolve, reject) => {
+    try {
+      await k8sExec.exec(
+        namespace(),
+        podName,
+        containerName,
+        command,
+        null,
+        errStream,
+        readStream,
+        false,
+        async () => {
+          if (errStream.size()) {
+            const errString = stringify(errStream.getContentsAsString())
+            core.debug(
+              `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${errString}`
+            )
+            reject(new Error(`Error from cpToPod - details: \n ${errString}`))
+          } else {
+            resolve()
           }
-        )
-      } catch (error) {
-        const message = extractErrorMessageFromK8sError(error)
-        core.debug(
-          `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${message}`
-        )
-        reject(error)
-      }
-    })
-    core.debug('finished copying')
-  } catch (error) {
-    core.debug(
-      `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${error})}`
-    )
-  }
+        }
+      )
+    } catch (error) {
+      const message = extractErrorMessageFromK8sError(error)
+      core.debug(
+        `error copying ${srcPath} to ${tgtPath} in ${containerName} in pod ${podName}: ${message}`
+      )
+      reject(error)
+    }
+  })
+  core.debug('finished copying')
 }
 
 export function extractErrorMessageFromK8sError(error: unknown): string {
