@@ -133,12 +133,14 @@ async function runScriptStepInJobSet(
     await Promise.all(
       pods.items.map(async pod => {
         const jobCompletionIndex = Number(
-          pod.metadata?.annotations!!['batch.kubernetes.io/job-completion-index']
+          pod.metadata?.annotations!![
+            'batch.kubernetes.io/job-completion-index'
+          ]
         )
         core.debug(
           `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
         )
-  
+
         return runScriptByGrpc(
           scriptContent,
           rootCertClientAndKey.caCertAndkey.cert,
