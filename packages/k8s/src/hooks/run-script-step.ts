@@ -129,55 +129,57 @@ async function runScriptStepInJobSet(
   }
 
   core.debug(`executing script for ${jobSetName}`)
-  await Promise.all(
-    pods.items.map(async pod => {
-      const jobCompletionIndex = Number(
-        pod.metadata?.annotations!!['batch.kubernetes.io/job-completion-index']
-      )
-      core.debug(
-        `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
-      )
-
-      return runScriptByGrpc(
-        scriptContent,
-        rootCertClientAndKey.caCertAndkey.cert,
-        rootCertClientAndKey.clientCertAndKey.cert,
-        rootCertClientAndKey.clientCertAndKey.privateKey,
-        pod.status!!.podIP!!,
-        GRPC_SCRIPT_EXECUTOR_PORT,
-        indexToStreamMap[jobCompletionIndex][0],
-        indexToStreamMap[jobCompletionIndex][1]
-      )
-    })
-  )
-
-  // Output the output and error for the rest of the jobs.
-  for (let i = 1; i < pods.items.length; i += 1) {
-    const jobOutput = fs.readFileSync(
-      join(tempTestDir, `${jobSetName}-${i}.out`)
+  try {
+    await Promise.all(
+      pods.items.map(async pod => {
+        const jobCompletionIndex = Number(
+          pod.metadata?.annotations!!['batch.kubernetes.io/job-completion-index']
+        )
+        core.debug(
+          `Running script by grpc in pod ${pod.metadata?.name} with prefix ${jobCompletionIndex}`
+        )
+  
+        return runScriptByGrpc(
+          scriptContent,
+          rootCertClientAndKey.caCertAndkey.cert,
+          rootCertClientAndKey.clientCertAndKey.cert,
+          rootCertClientAndKey.clientCertAndKey.privateKey,
+          pod.status!!.podIP!!,
+          GRPC_SCRIPT_EXECUTOR_PORT,
+          indexToStreamMap[jobCompletionIndex][0],
+          indexToStreamMap[jobCompletionIndex][1]
+        )
+      })
     )
-    if (jobOutput.length) {
-      core.notice(`Job ${i} output`)
-      process.stdout.write(jobOutput)
+  } finally {
+    // Output the output and error for the rest of the jobs.
+    for (let i = 1; i < pods.items.length; i += 1) {
+      const jobOutput = fs.readFileSync(
+        join(tempTestDir, `${jobSetName}-${i}.out`)
+      )
+      if (jobOutput.length) {
+        core.notice(`Job ${i} output`)
+        process.stdout.write(jobOutput)
+      }
+      const jobError = fs.readFileSync(
+        join(tempTestDir, `${jobSetName}-${i}.err`)
+      )
+      if (jobError.length) {
+        core.warning(`Job ${i} error`)
+        process.stderr.write(jobError)
+      }
+      indexToStreamMap[i][0].close()
+      indexToStreamMap[i][1].close()
     }
-    const jobError = fs.readFileSync(
-      join(tempTestDir, `${jobSetName}-${i}.err`)
+
+    core.debug(`syncing workflow pod to runner pod with copyFromPod`)
+    await copyFromPod(
+      '/__w/_temp/_runner_file_commands',
+      '/home/runner/_work/_temp/_runner_file_commands',
+      pods.items[0].metadata!!.name!!,
+      JOB_CONTAINER_NAME
     )
-    if (jobError.length) {
-      core.warning(`Job ${i} error`)
-      process.stderr.write(jobError)
-    }
-    indexToStreamMap[i][0].close()
-    indexToStreamMap[i][1].close()
   }
-
-  core.debug(`syncing workflow pod to runner pod with copyFromPod`)
-  await copyFromPod(
-    '/__w/_temp/_runner_file_commands',
-    '/home/runner/_work/_temp/_runner_file_commands',
-    pods.items[0].metadata!!.name!!,
-    JOB_CONTAINER_NAME
-  )
 }
 
 async function syncRunnerFolderToWorkflowPod(
