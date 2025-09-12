@@ -76,10 +76,10 @@ async function runScriptStepWithGRPC(
       break
     } catch (err) {
       const message = extractErrorMessageFromK8sError(err)
-      core.debug(`ScriptExecutorError when trying to execute: ${message}`)
-      if (message.includes('ECONNREFUSED')) {
+      core.warning(`ScriptExecutorError when trying to execute: ${message}`)
+      if (message.includes('ECONNREFUSED') || message.includes('UNAVAILABLE')) {
         // Retry for 60s since the service may not be established.
-        core.debug(`Retrying execution for ECONNREFUSED.`)
+        core.warning(`Retrying execution for ECONNREFUSED or UNAVAILABLE.`)
         await backOffmanager.backOff()
       } else {
         throw new Error(
