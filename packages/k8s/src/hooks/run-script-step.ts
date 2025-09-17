@@ -35,9 +35,6 @@ async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
   state
 ): Promise<void> {
-  const runnerDir = `/home/runner/_work/_temp/_runner_file_commands`
-  const files = fs.readdirSync('/home/runner/_work/_temp/_runner_file_commands')
-
   const { entryPoint, entryPointArgs, environmentVariables } = args
   const scriptContent = getEntryPointScriptContent(
     args.workingDirectory,
@@ -76,10 +73,11 @@ async function runScriptStepWithGRPC(
       break
     } catch (err) {
       const message = extractErrorMessageFromK8sError(err)
-      core.warning(`ScriptExecutorError when trying to execute: ${message}`)
       if (message.includes('ECONNREFUSED') || message.includes('UNAVAILABLE')) {
         // Retry for 60s since the service may not be established.
-        core.warning(`Retrying execution for ECONNREFUSED or UNAVAILABLE.`)
+        core.warning(
+          `Retrying execution for ECONNREFUSED or UNAVAILABLE ${message}.`
+        )
         await backOffmanager.backOff()
       } else {
         throw new Error(
