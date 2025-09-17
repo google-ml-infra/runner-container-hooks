@@ -407,9 +407,7 @@ export async function runScriptByGrpc(
       if (exitCode === 0) {
         resolve()
       } else {
-        reject(
-          new Error(`Command ${command} failed with exit code ${exitCode}.`)
-        )
+        reject(new Error(`Job failed with exit code ${exitCode}.`))
       }
     })
 
