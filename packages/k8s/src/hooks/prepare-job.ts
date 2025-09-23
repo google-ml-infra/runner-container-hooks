@@ -71,6 +71,7 @@ export async function prepareJob(
     services = args.services.map(service => {
       core.debug(`Adding service '${service.image}' to pod definition`)
       core.debug(`${JSON.stringify(service)}`)
+      core.debug(`arg is ${JSON.stringify(args)}`)
       return createContainerSpec(
         service,
         generateContainerName(service.contextName),
