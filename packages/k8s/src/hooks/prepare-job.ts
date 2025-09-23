@@ -70,6 +70,7 @@ export async function prepareJob(
   if (args.services?.length) {
     services = args.services.map(service => {
       core.debug(`Adding service '${service.image}' to pod definition`)
+      core.debug(`${JSON.stringify(service)}`)
       return createContainerSpec(
         service,
         generateContainerName(service.contextName),
