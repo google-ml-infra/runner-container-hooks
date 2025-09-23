@@ -74,7 +74,7 @@ export async function prepareJob(
       core.debug(`arg is ${JSON.stringify(args)}`)
       return createContainerSpec(
         service,
-        generateContainerName(service.contextName),
+        generateContainerName(service.image),
         false,
         extension
       )
