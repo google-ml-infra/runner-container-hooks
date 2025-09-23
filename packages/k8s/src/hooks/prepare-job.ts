@@ -34,7 +34,8 @@ import {
   SCRIPT_EXECUTOR_ENTRY_POINT,
   SCRIPT_EXECUTOR_ENTRY_POINT_ARGS,
   getNumberOfHost,
-  sleep
+  sleep,
+  generateServicesName
 } from '../k8s/utils'
 import {
   CONTAINER_EXTENSION_PREFIX,
@@ -68,13 +69,14 @@ export async function prepareJob(
 
   let services: k8s.V1Container[] = []
   if (args.services?.length) {
+    generateServicesName(args.services)
     services = args.services.map(service => {
       core.debug(`Adding service '${service.image}' to pod definition`)
       core.debug(`${JSON.stringify(service)}`)
       core.debug(`arg is ${JSON.stringify(args)}`)
       return createContainerSpec(
         service,
-        generateContainerName(service.image),
+        service.name,
         false,
         extension
       )
@@ -248,7 +250,7 @@ function generateResponseFile(
 
   if (args.services?.length) {
     const serviceContainerNames =
-      args.services?.map(s => generateContainerName(s.image)) || []
+      args.services?.map(s => s.name) || []
 
     response.context['services'] = appPod?.spec?.containers
       ?.filter(c => serviceContainerNames.includes(c.name))

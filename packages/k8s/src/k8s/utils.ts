@@ -196,8 +196,23 @@ export function writeEntryPointScript(
   }
 }
 
+export function generateServicesName(services: {[key: string]: string}[]): void {
+  const servicesSeen: {[key: string]: number} = {}
+  for (const service of services) {
+    if (servicesSeen[service.image] === undefined) {
+      servicesSeen[service.image] = 0
+      service.name = generateContainerName(service.image)
+      continue;
+    }
+    servicesSeen[service.image] += 1
+    service.name = `${generateContainerName(service.image)}-${servicesSeen[service.image]}`
+  }
+
+  core.debug(`services are ${services}`)
+}
+
 export function generateContainerName(image: string): string {
-  const nameWithTag = image.split('/').pop()
+  const nameWithTag = image.replace('_', '-').split('/').pop()
   const name = nameWithTag?.split(':').at(0)
 
   if (!name) {
