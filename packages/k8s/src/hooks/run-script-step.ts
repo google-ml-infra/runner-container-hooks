@@ -10,6 +10,7 @@ import {
   execPodStep,
   extractErrorMessageFromK8sError,
   getPodsFromJobSet,
+  getPodStatus,
   getRootCertClientCertAndKey,
   jobSetExists
 } from '../k8s'
@@ -35,6 +36,7 @@ async function runScriptStepWithGRPC(
   args: RunScriptStepArgs,
   state
 ): Promise<void> {
+  core.debug(`arg is ${JSON.stringify(args)}`)
   const { entryPoint, entryPointArgs, environmentVariables } = args
   const scriptContent = getEntryPointScriptContent(
     args.workingDirectory,
@@ -59,6 +61,23 @@ async function runScriptStepWithGRPC(
     }
   }
 
+  let ip = getServiceName()
+  if (args.state?.services && Object.keys(args.state?.services).length > 0) {
+    core.debug(`services ${JSON.stringify(args.state?.services)}`)
+    const podName = state.jobPod
+    core.info('using script executor')
+
+    const status = await getPodStatus(podName)
+    if (status?.phase === 'Succeeded') {
+      throw new Error(`Failed to get pod ${podName} status`)
+    }
+    if (status?.podIP === undefined) {
+      throw new Error(`Failed to get pod ${podName} IP`)
+    }
+    ip = status.podIP
+    core.info(`ip is ${ip}`)
+  }
+
   // This will throw after retrying with back off for up to 60s.
   const backOffmanager = new BackOffManager(60)
   while (true) {
@@ -68,7 +87,7 @@ async function runScriptStepWithGRPC(
         rootCertClientAndKey.caCertAndkey.cert,
         rootCertClientAndKey.clientCertAndKey.cert,
         rootCertClientAndKey.clientCertAndKey.privateKey,
-        getServiceName()
+        ip
       )
       break
     } catch (err) {
