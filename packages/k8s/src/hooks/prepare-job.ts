@@ -67,6 +67,8 @@ export async function prepareJob(
     )
   }
 
+  core.debug(`container is ${container}`)
+
   let services: k8s.V1Container[] = []
   if (args.services?.length) {
     generateServicesName(args.services)
@@ -80,6 +82,13 @@ export async function prepareJob(
         service.createOptions
       )
     })
+    if (services.find(service => service.resources?.limits && service.resources.limits["google.com/tpu"])) {
+      if (container?.resources?.limits && container.resources.limits["google.com/tpu"]) {
+        core.debug("removing tpu from resources")
+        delete container.resources.limits["google.com/tpu"]
+        core.debug(`resources ${container.resources}`)
+      }
+    }
   }
 
   if (!container && !services?.length) {
@@ -285,8 +294,9 @@ async function copyExternalsToRoot(): Promise<void> {
 }
 
 const entrypointRegex = /--entrypoint=\[(.*?)\]/;
+const tpuRegex = /--tpu=([0-9]+)/;
 
-function retrieveEntryPoint(container: JobContainerInfo, createOptions: string) {
+function overrideEntrypoint(container: JobContainerInfo, createOptions: string) {
   const match = createOptions.match(entrypointRegex);
 
   if (!match || match[1] === undefined) {
@@ -299,6 +309,23 @@ function retrieveEntryPoint(container: JobContainerInfo, createOptions: string) 
   container.entryPoint = entryPointAndArgs[0]
   container.entryPointArgs = entryPointAndArgs.slice(1)
   core.debug(`container is ${container}`)
+}
+
+function overrideTpuRequest(container: JobContainerInfo, createOptions: string) {
+  const match = createOptions.match(tpuRegex)
+  if (!match || match[1] === undefined) {
+    core.debug(`no tpu override for ${container}`)
+    return
+  }
+  if (!container.resources) {
+    container.resources = {}
+  }
+  if (!container.resources.limits) {
+    container.resources.limits = {}
+  }
+
+  container.resources.limits["google.com/tpu"] = match[1]
+  core.debug(`new container ${container}`)
 }
 
 export function createContainerSpec(
@@ -328,7 +355,8 @@ export function createContainerSpec(
   // Override service container entrypoint with createOptions
   if (!jobContainer && createOptions && createOptions?.length > 0) {
     core.debug(`overriding with createOptions ${createOptions}`)
-    retrieveEntryPoint(container, createOptions)
+    overrideEntrypoint(container, createOptions)
+    overrideTpuRequest(container, createOptions)
   }
 
   const podContainer = {
