@@ -325,7 +325,9 @@ export function useKubeScheduler(): boolean {
 }
 
 export function useScriptExecutor(): boolean {
-  return false
+  return (
+    process.env[ENV_USE_SCRIPT_EXECUTOR] === 'true' || getNumberOfHost() > 1
+  )
 }
 
 export function getNumberOfHost(): number {
