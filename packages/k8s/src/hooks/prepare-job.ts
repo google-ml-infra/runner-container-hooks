@@ -308,16 +308,16 @@ function overrideEntrypoint(container: JobContainerInfo, createOptions: string) 
   core.debug(`entrypoints are ${entryPointAndArgs}`)
   container.entryPoint = entryPointAndArgs[0]
   container.entryPointArgs = entryPointAndArgs.slice(1)
-  core.debug(`container is ${JSON.stringify(container)}`)
+  core.debug(`overriden container is ${JSON.stringify(container)}`)
 }
 
-function overrideTpuRequest(container: JobContainerInfo, createOptions: string) {
+function getTpuRequest(container: JobContainerInfo, createOptions: string): number {
   core.debug('create options' + createOptions)
   const match = createOptions.match(tpuRegex)
   core.debug(`match is ${match}`)
   if (!match || match[1] === undefined) {
     core.debug(`no tpu override for ${container}`)
-    return
+    return 0
   }
   if (!container.resources) {
     container.resources = {}
@@ -326,8 +326,7 @@ function overrideTpuRequest(container: JobContainerInfo, createOptions: string) 
     container.resources.limits = {}
   }
 
-  container.resources.limits["google.com/tpu"] = match[1]
-  core.debug(`new container ${JSON.stringify(container)}`)
+  return Number(match[1])
 }
 
 export function createContainerSpec(
@@ -354,12 +353,15 @@ export function createContainerSpec(
     }  
   }
   
+  let tpuRequest = 0
   // Override service container entrypoint with createOptions
   if (!jobContainer && createOptions && createOptions?.length > 0) {
     core.debug(`overriding with createOptions ${createOptions}`)
     overrideEntrypoint(container, createOptions)
-    overrideTpuRequest(container, createOptions)
+    tpuRequest = getTpuRequest(container, createOptions)
   }
+
+  core.debug(`tpu request is ${tpuRequest}`)
 
   const podContainer = {
     name,
@@ -385,6 +387,16 @@ export function createContainerSpec(
     if (value && key !== 'HOME') {
       podContainer.env.push({ name: key, value: value as string })
     }
+  }
+
+  if (tpuRequest > 0) {
+    core.debug(`assingin tpu to podContainer`)
+    podContainer.resources = {
+      limits: {
+        "google.com/tpu": String(tpuRequest)
+      }
+    }
+    core.debug(`podcontainer is ${podContainer}`)
   }
 
   podContainer.env.push({
