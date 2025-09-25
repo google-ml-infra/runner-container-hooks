@@ -67,7 +67,7 @@ export async function prepareJob(
     )
   }
 
-  core.debug(`container is ${container}`)
+  core.debug(`container is ${JSON.stringify(container)}`)
 
   let services: k8s.V1Container[] = []
   if (args.services?.length) {
@@ -308,11 +308,13 @@ function overrideEntrypoint(container: JobContainerInfo, createOptions: string) 
   core.debug(`entrypoints are ${entryPointAndArgs}`)
   container.entryPoint = entryPointAndArgs[0]
   container.entryPointArgs = entryPointAndArgs.slice(1)
-  core.debug(`container is ${container}`)
+  core.debug(`container is ${JSON.stringify(container)}`)
 }
 
 function overrideTpuRequest(container: JobContainerInfo, createOptions: string) {
+  core.debug('create options' + createOptions)
   const match = createOptions.match(tpuRegex)
+  core.debug(`match is ${match}`)
   if (!match || match[1] === undefined) {
     core.debug(`no tpu override for ${container}`)
     return
@@ -325,7 +327,7 @@ function overrideTpuRequest(container: JobContainerInfo, createOptions: string) 
   }
 
   container.resources.limits["google.com/tpu"] = match[1]
-  core.debug(`new container ${container}`)
+  core.debug(`new container ${JSON.stringify(container)}`)
 }
 
 export function createContainerSpec(
