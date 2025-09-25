@@ -16,8 +16,8 @@ import {
 import { script_executor } from './script_executor'
 import { Writable } from 'stream'
 
-export const DEFAULT_CONTAINER_ENTRY_POINT_ARGS = [`-f`, `/dev/null`]
-export const DEFAULT_CONTAINER_ENTRY_POINT = 'tail'
+export const DEFAULT_CONTAINER_ENTRY_POINT_ARGS = [`-c`, `'sleep 100000'`]
+export const DEFAULT_CONTAINER_ENTRY_POINT = '/bin/sh'
 
 export const SCRIPT_EXECUTOR_ENTRY_POINT = '/__w/externals/node20/bin/node'
 export const SCRIPT_EXECUTOR_ENTRY_POINT_ARGS = [
