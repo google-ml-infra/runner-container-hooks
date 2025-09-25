@@ -295,7 +295,6 @@ export function createContainerSpec(
     container.entryPoint = DEFAULT_CONTAINER_ENTRY_POINT
     container.entryPointArgs = DEFAULT_CONTAINER_ENTRY_POINT_ARGS
     if (useScriptExecutor()) {
-      /*
       core.debug('starting script executor server')
       // Starting the server.
       container.entryPoint =
@@ -306,7 +305,6 @@ export function createContainerSpec(
       ]
         ? process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'].split(' ')
         : SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
-        */
     }  
   }
 
