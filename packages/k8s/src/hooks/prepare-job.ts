@@ -83,10 +83,13 @@ export async function prepareJob(
       )
     })
     if (services.find(service => service.resources?.limits && service.resources.limits["google.com/tpu"])) {
-      if (container?.resources?.limits && container.resources.limits["google.com/tpu"]) {
+      if (container?.resources?.requests && container.resources.requests["google.com/tpu"]) {
         core.debug("removing tpu from resources")
-        delete container.resources.limits["google.com/tpu"]
+        delete container.resources.requests["google.com/tpu"]
         core.debug(`resources ${container.resources}`)
+        if (container.resources.limits && container.resources.limits["google.com/tpu"]) {
+          delete container.resources.limits["google.com/tpu"]
+        }
       }
     }
   }
@@ -319,12 +322,6 @@ function getTpuRequest(container: JobContainerInfo, createOptions: string): numb
     core.debug(`no tpu override for ${container}`)
     return 0
   }
-  if (!container.resources) {
-    container.resources = {}
-  }
-  if (!container.resources.limits) {
-    container.resources.limits = {}
-  }
 
   return Number(match[1])
 }
@@ -393,6 +390,9 @@ export function createContainerSpec(
     core.debug(`assingin tpu to podContainer`)
     podContainer.resources = {
       limits: {
+        "google.com/tpu": String(tpuRequest)
+      },
+      requests: {
         "google.com/tpu": String(tpuRequest)
       }
     }
