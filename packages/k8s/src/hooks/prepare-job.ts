@@ -129,6 +129,7 @@ export async function prepareJob(
   }
 
   core.debug('Job pod is ready for traffic')
+  await sleep(5000000)
 
   let isAlpine = false
   try {
