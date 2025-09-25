@@ -71,14 +71,13 @@ export async function prepareJob(
   if (args.services?.length) {
     generateServicesName(args.services)
     services = args.services.map(service => {
-      core.debug(`Adding service '${service.image}' to pod definition`)
-      core.debug(`${JSON.stringify(service)}`)
-      core.debug(`arg is ${JSON.stringify(args)}`)
+      core.debug(`service is ${JSON.stringify(service)}`)
       return createContainerSpec(
         service,
         service.name,
         false,
-        extension
+        extension,
+        service.createOptions
       )
     })
   }
@@ -285,11 +284,29 @@ async function copyExternalsToRoot(): Promise<void> {
   }
 }
 
+const entrypointRegex = /--entrypoint=\[(.*?)\]/;
+
+function retrieveEntryPoint(container: JobContainerInfo, createOptions: string) {
+  const match = createOptions.match(entrypointRegex);
+
+  if (!match || match[1] === undefined) {
+    core.debug(`no match for createoptions ${createOptions}`)
+    return
+  }
+
+  const entryPointAndArgs = match[1].split(',')
+  core.debug(`entrypoints are ${entryPointAndArgs}`)
+  container.entryPoint = entryPointAndArgs[0]
+  container.entryPointArgs = entryPointAndArgs.slice(1)
+  core.debug(`container is ${container}`)
+}
+
 export function createContainerSpec(
   container: JobContainerInfo,
   name: string,
   jobContainer = false,
-  extension?: k8s.V1PodTemplateSpec
+  extension?: k8s.V1PodTemplateSpec,
+  createOptions?: string
 ): k8s.V1Container {
   if (!container.entryPoint && jobContainer) {
     container.entryPoint = DEFAULT_CONTAINER_ENTRY_POINT
@@ -306,6 +323,12 @@ export function createContainerSpec(
         ? process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'].split(' ')
         : SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
     }  
+  }
+  
+  // Override service container entrypoint with createOptions
+  if (!jobContainer && createOptions && createOptions?.length > 0) {
+    core.debug(`overriding with createOptions ${createOptions}`)
+    retrieveEntryPoint(container, createOptions)
   }
 
   const podContainer = {
