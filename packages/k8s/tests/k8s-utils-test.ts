@@ -370,12 +370,6 @@ describe('k8s utils', () => {
         }
       ]
       generateServicesName(services)
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: 'commonName',
-          value: CertCommonName.ROOT
-        })
-      ])
 
       expect(services).toEqual([
         { image: 'foo', name: 'foo' },
