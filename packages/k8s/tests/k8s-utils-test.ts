@@ -11,7 +11,8 @@ import {
   ENV_HOOK_TEMPLATE_PATH,
   createScriptExecutorContainer,
   getNumberOfHost,
-  ENV_NUMBER_OF_HOSTS
+  ENV_NUMBER_OF_HOSTS,
+  generateServicesName
 } from '../src/k8s/utils'
 import * as k8s from '@kubernetes/client-node'
 import { TestHelper } from './test-setup'
@@ -344,11 +345,42 @@ describe('k8s utils', () => {
       )
     })
 
+    it('should replace - with _', () => {
+      expect(
+        generateContainerName('public.ecr.aws/localstack/local_stack')
+      ).toEqual('local-stack')
+    })
+
     it('should throw on invalid image string', () => {
       expect(() =>
         generateContainerName('localstack/localstack/:latest')
       ).toThrow()
       expect(() => generateContainerName(':latest')).toThrow()
+    })
+  })
+
+  describe('generateServicesName', () => {
+    it('should generate services name for multiple identical image', () => {
+      const services = [
+        {
+          image: 'foo'
+        },
+        {
+          image: 'foo'
+        }
+      ]
+      generateServicesName(services)
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'commonName',
+          value: CertCommonName.ROOT
+        })
+      ])
+
+      expect(services).toEqual([
+        { image: 'foo', name: 'foo' },
+        { image: 'foo', name: 'foo-1' }
+      ])
     })
   })
 

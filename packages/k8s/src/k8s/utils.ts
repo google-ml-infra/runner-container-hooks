@@ -197,7 +197,7 @@ export function writeEntryPointScript(
 }
 
 export function generateContainerName(image: string): string {
-  const nameWithTag = image.split('/').pop()
+  const nameWithTag = image.replace('_', '-').split('/').pop()
   const name = nameWithTag?.split(':').at(0)
 
   if (!name) {
@@ -261,6 +261,27 @@ export function mergePodSpecWithOptions(
       base[key] = value
     }
   }
+}
+
+// If there are multiple service containers with the same image name, append a number
+// to uniquely identify them. Otherwise we won't be able to create it.
+export function generateServicesName(
+  services: { [key: string]: string }[]
+): void {
+  const servicesSeen: { [key: string]: number } = {}
+  for (const service of services) {
+    if (servicesSeen[service.image] === undefined) {
+      servicesSeen[service.image] = 0
+      service.name = generateContainerName(service.image)
+      continue
+    }
+    servicesSeen[service.image] += 1
+    service.name = `${generateContainerName(service.image)}-${
+      servicesSeen[service.image]
+    }`
+  }
+
+  core.debug(`services are ${JSON.stringify(services)}`)
 }
 
 export function mergeObjectMeta(
