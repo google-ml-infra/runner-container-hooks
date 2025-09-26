@@ -34,7 +34,8 @@ import {
   SCRIPT_EXECUTOR_ENTRY_POINT,
   SCRIPT_EXECUTOR_ENTRY_POINT_ARGS,
   getNumberOfHost,
-  sleep
+  sleep,
+  generateServicesName
 } from '../k8s/utils'
 import {
   CONTAINER_EXTENSION_PREFIX,
@@ -68,6 +69,7 @@ export async function prepareJob(
 
   let services: k8s.V1Container[] = []
   if (args.services?.length) {
+    generateServicesName(args.services)
     services = args.services.map(service => {
       core.debug(`Adding service '${service.image}' to pod definition`)
       return createContainerSpec(
@@ -288,19 +290,19 @@ export function createContainerSpec(
   if (!container.entryPoint && jobContainer) {
     container.entryPoint = DEFAULT_CONTAINER_ENTRY_POINT
     container.entryPointArgs = DEFAULT_CONTAINER_ENTRY_POINT_ARGS
-  }
 
-  if (useScriptExecutor()) {
-    core.debug('starting script executor server')
-    // Starting the server.
-    container.entryPoint =
-      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] ||
-      SCRIPT_EXECUTOR_ENTRY_POINT
-    container.entryPointArgs = process.env[
-      'ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'
-    ]
-      ? process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'].split(' ')
-      : SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+    if (useScriptExecutor()) {
+      core.debug('starting script executor server')
+      // Starting the server.
+      container.entryPoint =
+        process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] ||
+        SCRIPT_EXECUTOR_ENTRY_POINT
+      container.entryPointArgs = process.env[
+        'ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'
+      ]
+        ? process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'].split(' ')
+        : SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+    }
   }
 
   const podContainer = {
