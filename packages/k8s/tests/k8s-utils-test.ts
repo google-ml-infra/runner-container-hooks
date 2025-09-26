@@ -385,7 +385,7 @@ describe('k8s utils', () => {
       expect(getEntryPointAndArgs(`--entrypoint=["/foo"]`)).toEqual(['"/foo"'])
       expect(
         getEntryPointAndArgs(`--entrypoint=["/foo", "--a", "--b"]`)
-      ).toEqual(['"/foo"', '--a', '--b'])
+      ).toEqual(['"/foo"', '"--a"', '"--b"'])
     })
   })
 
