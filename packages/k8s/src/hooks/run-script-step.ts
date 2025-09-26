@@ -62,6 +62,7 @@ async function runScriptStepWithGRPC(
   }
 
   let ip = getServiceName()
+  /*
   const podName = state.jobPod
   core.info('using script executor')
 
@@ -73,10 +74,11 @@ async function runScriptStepWithGRPC(
     throw new Error(`Failed to get pod ${podName} IP`)
   }
   ip = status.podIP
+  */
   core.info(`ip is ${ip}`)
 
   // This will throw after retrying with back off for up to 60s.
-  const backOffmanager = new BackOffManager(60)
+  const backOffmanager = new BackOffManager(600)
   while (true) {
     try {
       await runScriptByGrpc(
