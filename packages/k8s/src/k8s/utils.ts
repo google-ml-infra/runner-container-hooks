@@ -16,8 +16,8 @@ import {
 import { script_executor } from './script_executor'
 import { Writable } from 'stream'
 
-export const DEFAULT_CONTAINER_ENTRY_POINT_ARGS = [`-f`, `/dev/null`]
-export const DEFAULT_CONTAINER_ENTRY_POINT = 'tail'
+export const DEFAULT_CONTAINER_ENTRY_POINT_ARGS = [`-c`, `'sleep 100000'`]
+export const DEFAULT_CONTAINER_ENTRY_POINT = '/bin/sh'
 
 export const SCRIPT_EXECUTOR_ENTRY_POINT = '/__w/externals/node20/bin/node'
 export const SCRIPT_EXECUTOR_ENTRY_POINT_ARGS = [
@@ -196,8 +196,23 @@ export function writeEntryPointScript(
   }
 }
 
+export function generateServicesName(services: {[key: string]: string}[]): void {
+  const servicesSeen: {[key: string]: number} = {}
+  for (const service of services) {
+    if (servicesSeen[service.image] === undefined) {
+      servicesSeen[service.image] = 0
+      service.name = generateContainerName(service.image)
+      continue;
+    }
+    servicesSeen[service.image] += 1
+    service.name = `${generateContainerName(service.image)}-${servicesSeen[service.image]}`
+  }
+
+  core.debug(`services are ${services}`)
+}
+
 export function generateContainerName(image: string): string {
-  const nameWithTag = image.split('/').pop()
+  const nameWithTag = image.replace('_', '-').split('/').pop()
   const name = nameWithTag?.split(':').at(0)
 
   if (!name) {

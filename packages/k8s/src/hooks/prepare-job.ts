@@ -34,7 +34,8 @@ import {
   SCRIPT_EXECUTOR_ENTRY_POINT,
   SCRIPT_EXECUTOR_ENTRY_POINT_ARGS,
   getNumberOfHost,
-  sleep
+  sleep,
+  generateServicesName
 } from '../k8s/utils'
 import {
   CONTAINER_EXTENSION_PREFIX,
@@ -66,17 +67,31 @@ export async function prepareJob(
     )
   }
 
+  core.debug(`container is ${JSON.stringify(container)}`)
+
   let services: k8s.V1Container[] = []
   if (args.services?.length) {
+    generateServicesName(args.services)
     services = args.services.map(service => {
-      core.debug(`Adding service '${service.image}' to pod definition`)
+      core.debug(`service is ${JSON.stringify(service)}`)
       return createContainerSpec(
         service,
-        generateContainerName(service.image),
+        service.name,
         false,
-        extension
+        extension,
+        service.createOptions
       )
     })
+    if (services.find(service => service.resources?.limits && service.resources.limits["google.com/tpu"])) {
+      if (container?.resources?.requests && container.resources.requests["google.com/tpu"]) {
+        core.debug("removing tpu from resources")
+        delete container.resources.requests["google.com/tpu"]
+        core.debug(`resources ${container.resources}`)
+        if (container.resources.limits && container.resources.limits["google.com/tpu"]) {
+          delete container.resources.limits["google.com/tpu"]
+        }
+      }
+    }
   }
 
   if (!container && !services?.length) {
@@ -118,6 +133,8 @@ export async function prepareJob(
       getPrepareJobTimeoutSeconds()
     )
   } catch (err) {
+    core.info(`pod failed to come online with error: ${err}`)
+    await sleep(500000)
     await prunePods()
     throw new Error(`pod failed to come online with error: ${err}`)
   }
@@ -246,7 +263,7 @@ function generateResponseFile(
 
   if (args.services?.length) {
     const serviceContainerNames =
-      args.services?.map(s => generateContainerName(s.image)) || []
+      args.services?.map(s => s.name) || []
 
     response.context['services'] = appPod?.spec?.containers
       ?.filter(c => serviceContainerNames.includes(c.name))
@@ -279,29 +296,69 @@ async function copyExternalsToRoot(): Promise<void> {
   }
 }
 
+const entrypointRegex = /--entrypoint=\[(.*?)\]/;
+const tpuRegex = /--tpu=([0-9]+)/;
+
+function overrideEntrypoint(container: JobContainerInfo, createOptions: string) {
+  const match = createOptions.match(entrypointRegex);
+
+  if (!match || match[1] === undefined) {
+    core.debug(`no match for createoptions ${createOptions}`)
+    return
+  }
+
+  const entryPointAndArgs = match[1].split(',')
+  core.debug(`entrypoints are ${entryPointAndArgs}`)
+  container.entryPoint = entryPointAndArgs[0]
+  container.entryPointArgs = entryPointAndArgs.slice(1)
+  core.debug(`overriden container is ${JSON.stringify(container)}`)
+}
+
+function getTpuRequest(container: JobContainerInfo, createOptions: string): number {
+  core.debug('create options' + createOptions)
+  const match = createOptions.match(tpuRegex)
+  core.debug(`match is ${match}`)
+  if (!match || match[1] === undefined) {
+    core.debug(`no tpu override for ${container}`)
+    return 0
+  }
+
+  return Number(match[1])
+}
+
 export function createContainerSpec(
   container: JobContainerInfo,
   name: string,
   jobContainer = false,
-  extension?: k8s.V1PodTemplateSpec
+  extension?: k8s.V1PodTemplateSpec,
+  createOptions?: string
 ): k8s.V1Container {
   if (!container.entryPoint && jobContainer) {
     container.entryPoint = DEFAULT_CONTAINER_ENTRY_POINT
     container.entryPointArgs = DEFAULT_CONTAINER_ENTRY_POINT_ARGS
+    if (useScriptExecutor()) {
+      core.debug('starting script executor server')
+      // Starting the server.
+      container.entryPoint =
+        process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] ||
+        SCRIPT_EXECUTOR_ENTRY_POINT
+      container.entryPointArgs = process.env[
+        'ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'
+      ]
+        ? process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'].split(' ')
+        : SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+    }  
+  }
+  
+  let tpuRequest = 0
+  // Override service container entrypoint with createOptions
+  if (!jobContainer && createOptions && createOptions?.length > 0) {
+    core.debug(`overriding with createOptions ${createOptions}`)
+    overrideEntrypoint(container, createOptions)
+    tpuRequest = getTpuRequest(container, createOptions)
   }
 
-  if (useScriptExecutor()) {
-    core.debug('starting script executor server')
-    // Starting the server.
-    container.entryPoint =
-      process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ENTRY_POINT'] ||
-      SCRIPT_EXECUTOR_ENTRY_POINT
-    container.entryPointArgs = process.env[
-      'ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'
-    ]
-      ? process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'].split(' ')
-      : SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
-  }
+  core.debug(`tpu request is ${tpuRequest}`)
 
   const podContainer = {
     name,
@@ -327,6 +384,19 @@ export function createContainerSpec(
     if (value && key !== 'HOME') {
       podContainer.env.push({ name: key, value: value as string })
     }
+  }
+
+  if (tpuRequest > 0) {
+    core.debug(`assingin tpu to podContainer`)
+    podContainer.resources = {
+      limits: {
+        "google.com/tpu": String(tpuRequest)
+      },
+      requests: {
+        "google.com/tpu": String(tpuRequest)
+      }
+    }
+    core.debug(`podcontainer is ${podContainer}`)
   }
 
   podContainer.env.push({
