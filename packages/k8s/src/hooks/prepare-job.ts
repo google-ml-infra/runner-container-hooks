@@ -35,7 +35,8 @@ import {
   SCRIPT_EXECUTOR_ENTRY_POINT_ARGS,
   getNumberOfHost,
   sleep,
-  generateServicesName
+  generateServicesName,
+  getEntryPointAndArgs
 } from '../k8s/utils'
 import {
   CONTAINER_EXTENSION_PREFIX,
@@ -76,7 +77,8 @@ export async function prepareJob(
         service,
         generateContainerName(service.image),
         false,
-        extension
+        extension,
+        service.createOptions
       )
     })
   }
@@ -285,7 +287,8 @@ export function createContainerSpec(
   container: JobContainerInfo,
   name: string,
   jobContainer = false,
-  extension?: k8s.V1PodTemplateSpec
+  extension?: k8s.V1PodTemplateSpec,
+  createOptions?: string
 ): k8s.V1Container {
   if (!container.entryPoint && jobContainer) {
     container.entryPoint = DEFAULT_CONTAINER_ENTRY_POINT
@@ -302,6 +305,20 @@ export function createContainerSpec(
       ]
         ? process.env['ACTIONS_RUNNER_SCRIPT_EXECUTOR_ARGS'].split(' ')
         : SCRIPT_EXECUTOR_ENTRY_POINT_ARGS
+    }
+  }
+
+  if (!jobContainer && createOptions && createOptions?.length > 0) {
+    core.debug(
+      `overriding service container ${JSON.stringify(
+        container
+      )} with createOptions ${createOptions}`
+    )
+    const entryPointAndArgs = getEntryPointAndArgs(createOptions)
+    if (entryPointAndArgs.length > 1) {
+      core.debug(`overriding container entry points with ${entryPointAndArgs}`)
+      container.entryPoint = entryPointAndArgs[0]
+      container.entryPointArgs = entryPointAndArgs.slice(1)
     }
   }
 

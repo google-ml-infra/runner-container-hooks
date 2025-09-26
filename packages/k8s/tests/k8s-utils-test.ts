@@ -12,7 +12,8 @@ import {
   createScriptExecutorContainer,
   getNumberOfHost,
   ENV_NUMBER_OF_HOSTS,
-  generateServicesName
+  generateServicesName,
+  getEntryPointAndArgs
 } from '../src/k8s/utils'
 import * as k8s from '@kubernetes/client-node'
 import { TestHelper } from './test-setup'
@@ -375,6 +376,16 @@ describe('k8s utils', () => {
         { image: 'foo', name: 'foo' },
         { image: 'foo', name: 'foo-1' }
       ])
+    })
+  })
+
+  describe('getEntryPointAndArgs', () => {
+    it('should return correct entrypoint and argument', () => {
+      expect(getEntryPointAndArgs(`--blah`)).toEqual([])
+      expect(getEntryPointAndArgs(`--entrypoint=["/foo"]`)).toEqual(['"/foo"'])
+      expect(
+        getEntryPointAndArgs(`--entrypoint=["/foo", "--a", "--b"]`)
+      ).toEqual(['"/foo"', '"--a"', '"--b"'])
     })
   })
 

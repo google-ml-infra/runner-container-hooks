@@ -465,3 +465,16 @@ export function createScriptExecutorContainer(
   initContainer.volumeMounts.push(scriptExecutorVolumeMount)
   return initContainer
 }
+
+const entrypointRegex = /--entrypoint=\[(.*?)\]/
+
+export function getEntryPointAndArgs(createOptions: string): string[] {
+  const match = createOptions.match(entrypointRegex)
+
+  if (!match || match[1] === undefined) {
+    core.debug(`no match for createoptions ${createOptions}`)
+    return []
+  }
+
+  return match[1].split(',').map(item => item.trim())
+}
