@@ -467,14 +467,25 @@ export function createScriptExecutorContainer(
 }
 
 const entrypointRegex = /--entrypoint=\[(.*?)\]/
+const tpuRegex = /--tpu=([0-9]+)/
 
 export function getEntryPointAndArgs(createOptions: string): string[] {
   const match = createOptions.match(entrypointRegex)
 
   if (!match || match[1] === undefined) {
-    core.debug(`no match for createoptions ${createOptions}`)
+    core.debug(`no entrypoint found for createOptions ${createOptions}`)
     return []
   }
 
   return match[1].split(',').map(item => item.trim())
+}
+
+export function getTpuRequest(createOptions: string): number {
+  const match = createOptions.match(tpuRegex)
+  if (!match || match[1] === undefined) {
+    core.debug(`no tpu found for ${createOptions}`)
+    return 0
+  }
+
+  return Number(match[1])
 }
