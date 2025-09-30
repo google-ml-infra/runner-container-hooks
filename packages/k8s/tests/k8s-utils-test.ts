@@ -13,7 +13,8 @@ import {
   getNumberOfHost,
   ENV_NUMBER_OF_HOSTS,
   generateServicesName,
-  getEntryPointAndArgs
+  getEntryPointAndArgs,
+  getTpuRequest
 } from '../src/k8s/utils'
 import * as k8s from '@kubernetes/client-node'
 import { TestHelper } from './test-setup'
@@ -386,6 +387,13 @@ describe('k8s utils', () => {
       expect(
         getEntryPointAndArgs(`--entrypoint=["/foo", "--a", "--b"]`)
       ).toEqual(['"/foo"', '"--a"', '"--b"'])
+    })
+  })
+
+  describe('getTpuRequest', () => {
+    it('should return correct number of TPU requested', () => {
+      expect(getTpuRequest('--tpu=4')).toEqual(4)
+      expect(getTpuRequest('--nothing')).toEqual(0)
     })
   })
 

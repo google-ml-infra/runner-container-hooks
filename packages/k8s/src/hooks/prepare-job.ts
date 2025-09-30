@@ -36,7 +36,8 @@ import {
   getNumberOfHost,
   sleep,
   generateServicesName,
-  getEntryPointAndArgs
+  getEntryPointAndArgs,
+  getTpuRequest
 } from '../k8s/utils'
 import {
   CONTAINER_EXTENSION_PREFIX,
@@ -308,6 +309,7 @@ export function createContainerSpec(
     }
   }
 
+  let tpuRequest = 0
   if (!jobContainer && createOptions && createOptions?.length > 0) {
     core.debug(
       `overriding service container ${JSON.stringify(
@@ -320,6 +322,8 @@ export function createContainerSpec(
       container.entryPoint = entryPointAndArgs[0]
       container.entryPointArgs = entryPointAndArgs.slice(1)
     }
+    tpuRequest = getTpuRequest(createOptions)
+    core.debug(`TPU request from service container is ${tpuRequest}`)
   }
 
   const podContainer = {
@@ -337,6 +341,18 @@ export function createContainerSpec(
 
   if (container.entryPointArgs?.length > 0) {
     podContainer.args = fixArgs(container.entryPointArgs)
+  }
+
+  if (tpuRequest > 0) {
+    core.debug(`assigning ${tpuRequest} to podContainer`)
+    podContainer.resources = {
+      limits: {
+        'google.com/tpu': String(tpuRequest)
+      },
+      requests: {
+        'google.com/tpu': String(tpuRequest)
+      }
+    }
   }
 
   podContainer.env = []
