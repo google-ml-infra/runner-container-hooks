@@ -160,13 +160,18 @@ async function processServiceContainers(
     )
   })
 
-  // Only 1 container in a pod can request TPU's.
-  if (
-    services.find(
-      service =>
-        service.resources?.limits && service.resources.limits['google.com/tpu']
+  const tpuRequestingContainers = services.filter(
+    service =>
+      service.resources?.limits && service.resources.limits['google.com/tpu']
+  )
+
+  if (tpuRequestingContainers.length > 1) {
+    throw new Error(
+      `${tpuRequestingContainers.length} containers request for TPU's. Only 1 container per pod can request for TPU's.`
     )
-  ) {
+  }
+
+  if (tpuRequestingContainers.length === 1) {
     if (
       container?.resources?.requests &&
       container.resources.requests['google.com/tpu']
