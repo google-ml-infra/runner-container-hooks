@@ -5,6 +5,7 @@ import {
   JobContainerInfo,
   ContextPorts,
   PrepareJobArgs,
+  ServiceContainerInfo,
   writeToResponseFile
 } from 'hooklib'
 import path from 'path'
@@ -71,17 +72,7 @@ export async function prepareJob(
 
   let services: k8s.V1Container[] = []
   if (args.services?.length) {
-    generateServicesName(args.services)
-    services = args.services.map(service => {
-      core.debug(`Adding service '${service.image}' to pod definition`)
-      return createContainerSpec(
-        service,
-        generateContainerName(service.image),
-        false,
-        extension,
-        service.createOptions
-      )
-    })
+    processServiceContainers(args.services, container, extension)
   }
 
   if (!container && !services?.length) {
@@ -150,6 +141,48 @@ export async function prepareJob(
   }
 
   generateResponseFile(responseFile, args, createdPod, isAlpine)
+}
+
+async function processServiceContainers(
+  services: ServiceContainerInfo[],
+  container?: k8s.V1Container,
+  extension?: k8s.V1PodTemplateSpec
+) {
+  generateServicesName(services)
+  services = services.map(service => {
+    core.debug(`Adding service '${service.image}' to pod definition`)
+    return createContainerSpec(
+      service,
+      generateContainerName(service.image),
+      false,
+      extension,
+      service.createOptions
+    )
+  })
+
+  // Only 1 container in a pod can request TPU's.
+  if (
+    services.find(
+      service =>
+        service.resources?.limits && service.resources.limits['google.com/tpu']
+    )
+  ) {
+    if (
+      container?.resources?.requests &&
+      container.resources.requests['google.com/tpu']
+    ) {
+      core.debug(
+        'removing tpu from main container resources request and limits as they are requested by the service container and only 1 container in a pod can request TPU.'
+      )
+      delete container.resources.requests['google.com/tpu']
+      if (
+        container.resources.limits &&
+        container.resources.limits['google.com/tpu']
+      ) {
+        delete container.resources.limits['google.com/tpu']
+      }
+    }
+  }
 }
 
 // Create JobSet and waits for it to come online
