@@ -5,6 +5,7 @@ import {
   JobContainerInfo,
   ContextPorts,
   PrepareJobArgs,
+  ServiceContainerInfo,
   writeToResponseFile
 } from 'hooklib'
 import path from 'path'
@@ -69,20 +70,11 @@ export async function prepareJob(
     )
   }
 
-  let services: k8s.V1Container[] = []
-  if (args.services?.length) {
-    generateServicesName(args.services)
-    services = args.services.map(service => {
-      core.debug(`Adding service '${service.image}' to pod definition`)
-      return createContainerSpec(
-        service,
-        generateContainerName(service.image),
-        false,
-        extension,
-        service.createOptions
-      )
-    })
-  }
+  const services: k8s.V1Container[] = processServiceContainers(
+    args.services,
+    container,
+    extension
+  )
 
   if (!container && !services?.length) {
     throw new Error('No containers exist, skipping hook invocation')
@@ -150,6 +142,58 @@ export async function prepareJob(
   }
 
   generateResponseFile(responseFile, args, createdPod, isAlpine)
+}
+
+export function processServiceContainers(
+  services?: ServiceContainerInfo[],
+  container?: k8s.V1Container,
+  extension?: k8s.V1PodTemplateSpec
+): k8s.V1Container[] {
+  if (!services?.length) {
+    return []
+  }
+  generateServicesName(services)
+  const serviceContainers = services.map(service => {
+    core.debug(`Adding service '${service.image}' to pod definition`)
+    return createContainerSpec(
+      service,
+      service.name,
+      false,
+      extension,
+      service.createOptions
+    )
+  })
+
+  const tpuRequestingContainers = services.filter(
+    service =>
+      service.resources?.limits && service.resources.limits['google.com/tpu']
+  )
+
+  if (tpuRequestingContainers.length > 1) {
+    throw new Error(
+      `${tpuRequestingContainers.length} containers request for TPU's. Only 1 container per pod can request for TPU's.`
+    )
+  }
+
+  if (tpuRequestingContainers.length === 1) {
+    if (
+      container?.resources?.requests &&
+      container.resources.requests['google.com/tpu']
+    ) {
+      core.debug(
+        'removing tpu from main container resources request and limits as they are requested by the service container and only 1 container in a pod can request TPU.'
+      )
+      delete container.resources.requests['google.com/tpu']
+      if (
+        container.resources.limits &&
+        container.resources.limits['google.com/tpu']
+      ) {
+        core.debug('removing tpu from main container resource limits')
+        delete container.resources.limits['google.com/tpu']
+      }
+    }
+  }
+  return serviceContainers
 }
 
 // Create JobSet and waits for it to come online
@@ -356,11 +400,20 @@ export function createContainerSpec(
   }
 
   podContainer.env = []
-  for (const [key, value] of Object.entries(
-    container['environmentVariables']
-  )) {
-    if (value && key !== 'HOME') {
-      podContainer.env.push({ name: key, value: value as string })
+  if (container['environmentVariables']) {
+    for (const [key, value] of Object.entries(
+      container['environmentVariables']
+    )) {
+      if (value && key !== 'HOME') {
+        podContainer.env.push({ name: key, value: value as string })
+      }
+    }
+
+    if (!('CI' in container['environmentVariables'])) {
+      podContainer.env.push({
+        name: 'CI',
+        value: 'true'
+      })
     }
   }
 
@@ -368,13 +421,6 @@ export function createContainerSpec(
     name: 'GITHUB_ACTIONS',
     value: 'true'
   })
-
-  if (!('CI' in container['environmentVariables'])) {
-    podContainer.env.push({
-      name: 'CI',
-      value: 'true'
-    })
-  }
 
   podContainer.volumeMounts = containerVolumes(
     container.userMountVolumes,

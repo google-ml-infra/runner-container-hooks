@@ -1,18 +1,20 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { cleanupJob } from '../src/hooks'
-import { createContainerSpec, prepareJob } from '../src/hooks/prepare-job'
+import {
+  createContainerSpec,
+  prepareJob,
+  processServiceContainers
+} from '../src/hooks/prepare-job'
 import { TestHelper } from './test-setup'
 import {
   ENV_HOOK_TEMPLATE_PATH,
   ENV_NUMBER_OF_HOSTS,
   ENV_USE_KUBE_SCHEDULER,
-  generateContainerName,
-  readExtensionFromFile
+  generateContainerName
 } from '../src/k8s/utils'
-import { getEvents, getPodByName } from '../src/k8s'
+import { getPodByName } from '../src/k8s'
 import { V1Container } from '@kubernetes/client-node'
-import * as yaml from 'js-yaml'
 import { JOB_CONTAINER_NAME } from '../src/hooks/constants'
 
 jest.useRealTimers()
@@ -323,4 +325,63 @@ describe('Prepare job', () => {
       expect(() => content.context.services[0].image).not.toThrow()
     }
   )
+})
+
+describe('processServiceContainers', () => {
+  it('generate names for service containers', () => {
+    expect(
+      processServiceContainers(
+        [
+          {
+            image: 'gcr.io/server'
+          },
+          {
+            image: 'gcr.io/server'
+          }
+        ],
+        {
+          name: 'nginx',
+          image: 'nginx:latest',
+          imagePullPolicy: 'IfNotPresent'
+        } as V1Container
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'server' }),
+        expect.objectContaining({ name: 'server-1' })
+      ])
+    )
+  })
+
+  it('generate TPU request for service containers', () => {
+    expect(
+      processServiceContainers(
+        [
+          {
+            image: 'gcr.io/server',
+            createOptions: '--tpu=4'
+          }
+        ],
+        {
+          name: 'nginx',
+          image: 'nginx:latest',
+          imagePullPolicy: 'IfNotPresent'
+        } as V1Container
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'server',
+          resources: {
+            limits: {
+              'google.com/tpu': '4'
+            },
+            requests: {
+              'google.com/tpu': '4'
+            }
+          }
+        })
+      ])
+    )
+  })
 })
