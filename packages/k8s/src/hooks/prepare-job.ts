@@ -134,7 +134,6 @@ export async function prepareJob(
     )
   } catch (err) {
     core.info(`pod failed to come online with error: ${err}`)
-    await sleep(500000)
     await prunePods()
     throw new Error(`pod failed to come online with error: ${err}`)
   }
