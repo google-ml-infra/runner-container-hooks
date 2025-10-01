@@ -70,10 +70,11 @@ export async function prepareJob(
     )
   }
 
-  let services: k8s.V1Container[] = []
-  if (args.services?.length) {
-    processServiceContainers(args.services, container, extension)
-  }
+  const services: k8s.V1Container[] = processServiceContainers(
+    args.services,
+    container,
+    extension
+  )
 
   if (!container && !services?.length) {
     throw new Error('No containers exist, skipping hook invocation')
@@ -143,13 +144,16 @@ export async function prepareJob(
   generateResponseFile(responseFile, args, createdPod, isAlpine)
 }
 
-async function processServiceContainers(
-  services: ServiceContainerInfo[],
+function processServiceContainers(
+  services?: ServiceContainerInfo[],
   container?: k8s.V1Container,
   extension?: k8s.V1PodTemplateSpec
-) {
+): k8s.V1Container[] {
+  if (!services?.length) {
+    return []
+  }
   generateServicesName(services)
-  services = services.map(service => {
+  const serviceContainers = services.map(service => {
     core.debug(`Adding service '${service.image}' to pod definition`)
     return createContainerSpec(
       service,
@@ -188,6 +192,7 @@ async function processServiceContainers(
       }
     }
   }
+  return serviceContainers
 }
 
 // Create JobSet and waits for it to come online
