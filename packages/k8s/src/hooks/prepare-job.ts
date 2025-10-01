@@ -144,7 +144,7 @@ export async function prepareJob(
   generateResponseFile(responseFile, args, createdPod, isAlpine)
 }
 
-function processServiceContainers(
+export function processServiceContainers(
   services?: ServiceContainerInfo[],
   container?: k8s.V1Container,
   extension?: k8s.V1PodTemplateSpec
@@ -157,7 +157,7 @@ function processServiceContainers(
     core.debug(`Adding service '${service.image}' to pod definition`)
     return createContainerSpec(
       service,
-      generateContainerName(service.image),
+      service.name,
       false,
       extension,
       service.createOptions
@@ -188,6 +188,7 @@ function processServiceContainers(
         container.resources.limits &&
         container.resources.limits['google.com/tpu']
       ) {
+        core.debug('removing tpu from main container resource limits')
         delete container.resources.limits['google.com/tpu']
       }
     }
@@ -399,11 +400,20 @@ export function createContainerSpec(
   }
 
   podContainer.env = []
-  for (const [key, value] of Object.entries(
-    container['environmentVariables']
-  )) {
-    if (value && key !== 'HOME') {
-      podContainer.env.push({ name: key, value: value as string })
+  if (container['environmentVariables']) {
+    for (const [key, value] of Object.entries(
+      container['environmentVariables']
+    )) {
+      if (value && key !== 'HOME') {
+        podContainer.env.push({ name: key, value: value as string })
+      }
+    }
+
+    if (!('CI' in container['environmentVariables'])) {
+      podContainer.env.push({
+        name: 'CI',
+        value: 'true'
+      })
     }
   }
 
@@ -411,13 +421,6 @@ export function createContainerSpec(
     name: 'GITHUB_ACTIONS',
     value: 'true'
   })
-
-  if (!('CI' in container['environmentVariables'])) {
-    podContainer.env.push({
-      name: 'CI',
-      value: 'true'
-    })
-  }
 
   podContainer.volumeMounts = containerVolumes(
     container.userMountVolumes,
