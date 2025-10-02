@@ -480,10 +480,12 @@ export async function waitForPodPhases(
   maxTimeSeconds = DEFAULT_WAIT_FOR_POD_TIME_SECONDS
 ): Promise<void> {
   const backOffManager = new BackOffManager(maxTimeSeconds)
+  let podStatus: k8s.V1PodStatus | undefined = undefined
   let phase: PodPhase = PodPhase.UNKNOWN
   try {
     while (true) {
-      phase = await getPodPhase(podName)
+      podStatus = await getPodStatus(podName)
+      phase = getPodPhaseFromStatus(podStatus)
       if (awaitingPhases.has(phase)) {
         return
       }
@@ -496,8 +498,7 @@ export async function waitForPodPhases(
       await backOffManager.backOff()
     }
   } catch (error) {
-    core.debug(`error is ${error}`)
-    throw new Error(`Pod ${podName} is unhealthy with phase status ${phase}`)
+    throw new Error(`Pod ${podName} is unhealthy with phase status ${phase}. Pod message is ${podStatus?.message} and pod status is ${JSON.stringify(podStatus || "")}`)
   }
 }
 
@@ -520,22 +521,19 @@ export function getPrepareJobTimeoutSeconds(): number {
   return timeoutSeconds
 }
 
-async function getPodPhase(podName: string): Promise<PodPhase> {
-  const podPhaseLookup = new Set<string>([
-    PodPhase.PENDING,
-    PodPhase.RUNNING,
-    PodPhase.SUCCEEDED,
-    PodPhase.FAILED,
-    PodPhase.UNKNOWN
-  ])
-  const pod = await k8sApi.readNamespacedPod({
-    name: podName,
-    namespace: namespace()
-  })
-  if (!pod.status?.phase || !podPhaseLookup.has(pod.status.phase)) {
+const podPhaseLookup = new Set<string>([
+  PodPhase.PENDING,
+  PodPhase.RUNNING,
+  PodPhase.SUCCEEDED,
+  PodPhase.FAILED,
+  PodPhase.UNKNOWN
+])
+
+function getPodPhaseFromStatus(podStatus?: k8s.V1PodStatus): PodPhase {
+  if (!podStatus || !podStatus.phase || !podPhaseLookup.has(podStatus.phase)) {
     return PodPhase.UNKNOWN
   }
-  return pod.status?.phase as PodPhase
+  return podStatus.phase as PodPhase
 }
 
 async function isJobSucceeded(jobName: string): Promise<boolean> {
