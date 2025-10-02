@@ -498,7 +498,7 @@ export async function waitForPodPhases(
       await backOffManager.backOff()
     }
   } catch (error) {
-    throw new Error(`Pod ${podName} is unhealthy with phase status ${phase}. Pod message is ${podStatus?.message} and pod status is ${JSON.stringify(podStatus || "")}`)
+    throw new Error(`Pod ${podName} is unhealthy with phase status ${phase}. Pod message is ${podStatus?.message} and pod's container statuses are ${JSON.stringify(podStatus?.containerStatuses || "")}`)
   }
 }
 
