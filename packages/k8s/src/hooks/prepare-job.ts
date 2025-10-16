@@ -168,7 +168,9 @@ export function processServiceContainers(
     service =>
       service.resources?.limits && service.resources.limits['google.com/tpu']
   )
-  core.debug(`There are ${tpuRequestingContainers.length} service container requesting for TPU's.`)
+  core.debug(
+    `There are ${tpuRequestingContainers.length} service container requesting for TPU's.`
+  )
 
   if (tpuRequestingContainers.length > 1) {
     throw new Error(
