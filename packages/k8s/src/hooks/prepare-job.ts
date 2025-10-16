@@ -164,9 +164,12 @@ export function processServiceContainers(
     )
   })
 
-  const tpuRequestingContainers = services.filter(
+  const tpuRequestingContainers = serviceContainers.filter(
     service =>
       service.resources?.limits && service.resources.limits['google.com/tpu']
+  )
+  core.debug(
+    `There are ${tpuRequestingContainers.length} service container requesting for TPU's.`
   )
 
   if (tpuRequestingContainers.length > 1) {
