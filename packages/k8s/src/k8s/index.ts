@@ -134,11 +134,11 @@ export async function createPod(
   })
 }
 
-export function addSharedVolumes(
+function addSharedVolumes(
   podSpec: k8s.V1PodSpec,
   jobContainer: k8s.V1Container,
   services: k8s.V1Container[]
-) {
+): void {
   podSpec.volumes = podSpec.volumes || []
   const sharedVolumeName = 'shared-data'
   // Add a shared directory so job container and service containers can share data.
