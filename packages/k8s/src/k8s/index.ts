@@ -134,6 +134,32 @@ export async function createPod(
   })
 }
 
+function addSharedVolumes(
+  podSpec: k8s.V1PodSpec,
+  jobContainer: k8s.V1Container,
+  services: k8s.V1Container[]
+): void {
+  podSpec.volumes = podSpec.volumes || []
+  const sharedVolumeName = 'shared-data'
+  // Add a shared directory so job container and service containers can share data.
+  podSpec.volumes.push({
+    name: sharedVolumeName,
+    emptyDir: {}
+  })
+  jobContainer.volumeMounts = jobContainer.volumeMounts || []
+  jobContainer.volumeMounts.push({
+    name: sharedVolumeName,
+    mountPath: '/shared'
+  })
+  for (const service of services) {
+    service.volumeMounts = service.volumeMounts || []
+    service.volumeMounts.push({
+      name: sharedVolumeName,
+      mountPath: '/shared'
+    })
+  }
+}
+
 export async function createPodSpec(
   jobContainer?: k8s.V1Container,
   services?: k8s.V1Container[],
@@ -181,6 +207,10 @@ export async function createPodSpec(
       emptyDir: new k8s.V1EmptyDirVolumeSource()
     }
   )
+
+  if (jobContainer && services?.length) {
+    addSharedVolumes(podSpec, jobContainer, services)
+  }
 
   if (registry) {
     const secret = await createDockerSecret(registry)
