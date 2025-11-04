@@ -149,13 +149,13 @@ function addSharedVolumes(
   jobContainer.volumeMounts = jobContainer.volumeMounts || []
   jobContainer.volumeMounts.push({
     name: sharedVolumeName,
-    mountPath: '/shared'
+    mountPath: '/tmp'
   })
   for (const service of services) {
     service.volumeMounts = service.volumeMounts || []
     service.volumeMounts.push({
       name: sharedVolumeName,
-      mountPath: '/shared'
+      mountPath: '/tmp'
     })
   }
 }
