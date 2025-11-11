@@ -601,7 +601,27 @@ export async function prunePods(): Promise<void> {
   }
 
   await Promise.all(
-    podList.items.map(pod => pod.metadata?.name && deletePod(pod.metadata.name))
+    podList.items.map(async pod => {
+      if (!pod.metadata?.name) {
+        return
+      }
+
+      const backOffmanager = new BackOffManager(60)
+      while (true) {
+        try {
+          await deletePod(pod.metadata.name)
+          return
+        } catch (err) {
+          // If pod is already deleted, no need to retry
+          if (!(await podExists(pod.metadata.name))) {
+            return
+          } else {
+            await backOffmanager.backOff()
+            continue
+          }
+        }
+      }
+    })
   )
 }
 
@@ -799,6 +819,18 @@ export function containerPorts(
 
 export async function getPodByName(name): Promise<k8s.V1Pod> {
   return await k8sApi.readNamespacedPod({ name, namespace: namespace() })
+}
+
+export async function podExists(name): Promise<boolean> {
+  try {
+    await k8sApi.readNamespacedPod({ name, namespace: namespace() })
+    return true
+  } catch (error) {
+    if ((error as any)?.code === 404) {
+      return false
+    }
+    throw error
+  }
 }
 
 export async function getEvents(podName): Promise<k8s.CoreV1EventList> {
