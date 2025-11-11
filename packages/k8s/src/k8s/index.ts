@@ -603,6 +603,7 @@ export async function prunePods(): Promise<void> {
   await Promise.all(
     podList.items.map(async pod => {
       if (!pod.metadata?.name) {
+        core.error(`${JSON.stringify(pod)} does not have a name`)
         return
       }
 
