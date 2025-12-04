@@ -613,10 +613,15 @@ export async function prunePods(): Promise<void> {
           await deletePod(pod.metadata.name)
           return
         } catch (err) {
+          const message = extractErrorMessageFromK8sError(err)
           // If pod is already deleted, no need to retry.
           if (!(await podExists(pod.metadata.name))) {
+            core.info(`${pod.metadata.name} no longer exists`)
             return
           } else {
+            core.warning(
+              `error when deleting pod ${pod.metadata.name}: ${message}. Retrying`
+            )
             await backOffmanager.backOff()
             continue
           }
