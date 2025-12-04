@@ -626,7 +626,7 @@ export async function prunePods(): Promise<void> {
   )
 }
 
-export async function createHeadlessServiceWithRetry() {
+export async function createHeadlessServiceWithRetry(): Promise<void> {
   const backOffmanager = new BackOffManager(60)
   while (true) {
     try {

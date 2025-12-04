@@ -20,7 +20,6 @@ import {
   createJobSet,
   createPodSpec,
   getPodsFromJobSet,
-  BackOffManager,
   createHeadlessServiceWithRetry
 } from '../k8s'
 import {
@@ -44,7 +43,6 @@ import {
 import {
   CONTAINER_EXTENSION_PREFIX,
   getJobSetName,
-  getServiceName,
   JOB_CONTAINER_NAME
 } from './constants'
 
