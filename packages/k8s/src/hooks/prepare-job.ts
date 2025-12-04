@@ -16,11 +16,12 @@ import {
   prunePods,
   waitForPodPhases,
   getPrepareJobTimeoutSeconds,
-  createHeadlessService,
   extractErrorMessageFromK8sError,
   createJobSet,
   createPodSpec,
-  getPodsFromJobSet
+  getPodsFromJobSet,
+  BackOffManager,
+  createHeadlessServiceWithRetry
 } from '../k8s'
 import {
   containerVolumes,
@@ -43,6 +44,7 @@ import {
 import {
   CONTAINER_EXTENSION_PREFIX,
   getJobSetName,
+  getServiceName,
   JOB_CONTAINER_NAME
 } from './constants'
 
@@ -138,7 +140,7 @@ export async function prepareJob(
 
   if (useScriptExecutor() && getNumberOfHost() === 1) {
     core.debug(`Creating headless service`)
-    await createHeadlessService()
+    await createHeadlessServiceWithRetry()
   }
 
   generateResponseFile(responseFile, args, createdPod, isAlpine)

@@ -626,6 +626,22 @@ export async function prunePods(): Promise<void> {
   )
 }
 
+export async function createHeadlessServiceWithRetry() {
+  const backOffmanager = new BackOffManager(60)
+  while (true) {
+    try {
+      await createHeadlessService()
+      return
+    } catch (err) {
+      const message = extractErrorMessageFromK8sError(err)
+      core.warning(
+        `failed to create headless service ${getServiceName} with error ${message}. Retrying`
+      )
+      await backOffmanager.backOff()
+    }
+  }
+}
+
 export async function pruneServices(): Promise<void> {
   const labelSelector = new RunnerInstanceLabel().toString()
   core.debug(`pruning services with labels ${labelSelector}`)
