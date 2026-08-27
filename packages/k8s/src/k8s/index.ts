@@ -1147,7 +1147,8 @@ export async function getPodsFromJobSet(jobSetName): Promise<k8s.V1PodList> {
 export async function createJobSet(
   jobSetName: string,
   podSpec: k8s.V1PodSpec,
-  numberOfHost: number
+  numberOfHost: number,
+  extension?: k8s.V1PodTemplateSpec
 ): Promise<void> {
   // TODO(quoct): Right now we are using Kube Scheduler, we need to switch to Kueue
   // for resource assignment.
@@ -1198,6 +1199,18 @@ export async function createJobSet(
     )
   }
 
+  const podTemplate: k8s.V1PodTemplateSpec = {
+    metadata: {
+      labels: {},
+      annotations: {}
+    },
+    spec: podSpec
+  }
+
+  if (extension?.metadata) {
+    mergeObjectMeta(podTemplate, extension.metadata)
+  }
+
   await k8sCustomApi.createNamespacedCustomObject({
     group: 'jobset.x-k8s.io',
     version: 'v1alpha2',
@@ -1218,9 +1231,7 @@ export async function createJobSet(
                 parallelism: numberOfHost,
                 completions: numberOfHost,
                 backoffLimit: 0,
-                template: {
-                  spec: podSpec
-                }
+                template: podTemplate
               }
             }
           }

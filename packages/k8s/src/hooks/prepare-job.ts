@@ -211,7 +211,7 @@ async function prepareJobSet(
 
   const podSpec = await createPodSpec(jobContainer, [], null, extension)
   core.info(`creating JobSet ${jobSetName} for ${noOfHosts} hosts.`)
-  await createJobSet(jobSetName, podSpec, noOfHosts)
+  await createJobSet(jobSetName, podSpec, noOfHosts, extension)
 
   core.info('waiting for pods from JobSet to come online')
   await sleep(5_000)

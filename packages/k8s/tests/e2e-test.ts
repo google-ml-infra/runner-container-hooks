@@ -287,4 +287,49 @@ describe('jobset', () => {
       await deleteJobSet(jobSetName)
     }
   })
+
+  it('createJobSet applies extension metadata to the jobset pod template', async () => {
+    const jobSetName = 'test-jobset-meta'
+    const podSpec: k8s.V1PodSpec = {
+      restartPolicy: 'Never',
+      containers: [
+        {
+          name: 'nginx',
+          image: 'nginx:latest',
+          imagePullPolicy: 'IfNotPresent'
+        }
+      ]
+    } as k8s.V1PodSpec
+    const extension: k8s.V1PodTemplateSpec = {
+      metadata: {
+        annotations: {
+          'gke-gcsfuse/volumes': 'true',
+          'annotated-by': 'extension'
+        },
+        labels: {
+          'labeled-by': 'extension'
+        }
+      }
+    }
+    try {
+      await expect(
+        createJobSet(jobSetName, podSpec, 2, extension)
+      ).resolves.not.toThrow()
+      await sleep(500)
+      await expect(jobSetExists(jobSetName)).resolves.toBeTruthy()
+
+      const jobSetPods = await getPodsFromJobSet(jobSetName)
+      expect(
+        jobSetPods.items[0].metadata?.annotations?.['gke-gcsfuse/volumes']
+      ).toBe('true')
+      expect(jobSetPods.items[0].metadata?.annotations?.['annotated-by']).toBe(
+        'extension'
+      )
+      expect(jobSetPods.items[0].metadata?.labels?.['labeled-by']).toBe(
+        'extension'
+      )
+    } finally {
+      await deleteJobSet(jobSetName)
+    }
+  })
 })
