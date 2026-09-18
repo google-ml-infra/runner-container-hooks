@@ -490,9 +490,6 @@ export function getTpuRequest(createOptions: string): number {
   return Number(match[1])
 }
 
-export const SHARED_MOUNT_BASE_DIR = '/tmp/bap-ml-actions-ci'
-export const SHARED_MOUNT_DIR_NAME = 'shared_mount'
-
 export function getWorkspacePaths(workingDirectory?: string): {
   runnerWorkspace?: string
   containerWorkspace?: string

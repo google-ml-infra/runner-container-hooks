@@ -18,8 +18,6 @@ import {
   getNumberOfHost,
   getWorkspacePaths,
   runScriptByGrpc,
-  SHARED_MOUNT_BASE_DIR,
-  SHARED_MOUNT_DIR_NAME,
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
@@ -118,9 +116,7 @@ export async function runScriptStepInJobSet(
       await syncRunnerFolderToWorkflowPod(
         pod.metadata?.name!!,
         pod.status!!.podIP!!,
-        rootCertClientAndKey,
-        jobSetName,
-        containerWorkspace
+        rootCertClientAndKey
       )
     })
   )
@@ -197,11 +193,10 @@ export async function runScriptStepInJobSet(
       const headPod = pods.items[0]
       const headPodName = headPod.metadata!!.name!!
       const headPodIp = headPod.status!!.podIP!!
-      const sharedMountPath = `${SHARED_MOUNT_BASE_DIR}/${jobSetName}`
 
       try {
         await runScriptByGrpc(
-          `mkdir -p ${sharedMountPath} ${containerWorkspace}/.github && ln -sfn ${sharedMountPath} ${containerWorkspace}/${SHARED_MOUNT_DIR_NAME}`,
+          `mkdir -p ${containerWorkspace}/.github`,
           rootCertClientAndKey.caCertAndkey.cert,
           rootCertClientAndKey.clientCertAndKey.cert,
           rootCertClientAndKey.clientCertAndKey.privateKey,
@@ -209,14 +204,6 @@ export async function runScriptStepInJobSet(
           GRPC_SCRIPT_EXECUTOR_PORT,
           undefined,
           undefined
-        )
-
-        await copyFromPod(
-          `${containerWorkspace}/${SHARED_MOUNT_DIR_NAME}`,
-          `${runnerWorkspace}/${SHARED_MOUNT_DIR_NAME}`,
-          headPodName,
-          JOB_CONTAINER_NAME,
-          true
         )
 
         await copyFromPod(
@@ -228,7 +215,7 @@ export async function runScriptStepInJobSet(
         )
       } catch (err) {
         core.debug(
-          `failed to sync shared_mount and .github from workflow pod: ${extractErrorMessageFromK8sError(
+          `failed to sync .github from workflow pod: ${extractErrorMessageFromK8sError(
             err
           )}`
         )
@@ -237,28 +224,18 @@ export async function runScriptStepInJobSet(
   }
 }
 
-export async function syncRunnerFolderToWorkflowPod(
+async function syncRunnerFolderToWorkflowPod(
   podName: string,
   podIp: string,
-  rootCertClientAndKey: MTLSCertAndPrivateKey,
-  jobSetName?: string,
-  containerWorkspace?: string
+  rootCertClientAndKey: MTLSCertAndPrivateKey
 ): Promise<void> {
   core.debug('create folders used by GitHub Actions.')
-  let command = `
+  const command = `
 mkdir -p /github/home;
 mkdir -p /github/workflow;
 mkdir -p /__w/_temp;
 mkdir -p /__w/_actions;
 mkdir -p /__w/_tool`
-
-  if (jobSetName && containerWorkspace) {
-    const sharedMountPath = `${SHARED_MOUNT_BASE_DIR}/${jobSetName}`
-    command += `;
-mkdir -p ${sharedMountPath};
-mkdir -p ${containerWorkspace};
-ln -sfn ${sharedMountPath} ${containerWorkspace}/${SHARED_MOUNT_DIR_NAME}`
-  }
 
   await runScriptByGrpc(
     command,

@@ -24,10 +24,7 @@ import {
   getTpuRequest
 } from '../src/k8s/utils'
 import * as k8s from '@kubernetes/client-node'
-import {
-  runScriptStepInJobSet,
-  syncRunnerFolderToWorkflowPod
-} from '../src/hooks/run-script-step'
+import { runScriptStepInJobSet } from '../src/hooks/run-script-step'
 import { TestHelper } from './test-setup'
 import { CertCommonName, generateCert, generateCerts } from '../src/k8s/certs'
 
@@ -761,7 +758,7 @@ describe('certs', () => {
     })
   })
 
-  describe('getWorkspacePaths and JobSet shared_mount sync', () => {
+  describe('getWorkspacePaths and JobSet .github sync', () => {
     const originalWorkspace = process.env.GITHUB_WORKSPACE
 
     afterEach(() => {
@@ -789,38 +786,7 @@ describe('certs', () => {
       })
     })
 
-    it('provisions /tmp/bap-ml-actions-ci/<jobSetName> and symlinks shared_mount in syncRunnerFolderToWorkflowPod', async () => {
-      const utilsMod = require('../src/k8s/utils')
-      const k8sMod = require('../src/k8s')
-      const grpcSpy = jest
-        .spyOn(utilsMod, 'runScriptByGrpc')
-        .mockResolvedValue(undefined)
-      jest.spyOn(k8sMod, 'cpToPod').mockResolvedValue(undefined)
-
-      const certs = generateCerts()
-      await syncRunnerFolderToWorkflowPod(
-        'pod-0',
-        '10.0.0.1',
-        certs,
-        'runner-jobset',
-        '/__w/jax-ml/jax'
-      )
-
-      expect(grpcSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'ln -sfn /tmp/bap-ml-actions-ci/runner-jobset /__w/jax-ml/jax/shared_mount'
-        ),
-        expect.any(String),
-        expect.any(String),
-        expect.any(String),
-        '10.0.0.1',
-        expect.any(Number),
-        undefined,
-        undefined
-      )
-    })
-
-    it('copies shared_mount and .github from pod-0 with dereferenceSymlinks=true in runScriptStepInJobSet finally block', async () => {
+    it('copies .github from pod-0 with dereferenceSymlinks=true in runScriptStepInJobSet finally block', async () => {
       process.env.GITHUB_WORKSPACE = '/home/runner/_work/jax-ml/jax'
       const utilsMod = require('../src/k8s/utils')
       const k8sMod = require('../src/k8s')
@@ -846,13 +812,6 @@ describe('certs', () => {
       const certs = generateCerts()
       await runScriptStepInJobSet('echo hi', certs, '/__w/jax-ml/jax')
 
-      expect(copyFromPodSpy).toHaveBeenCalledWith(
-        '/__w/jax-ml/jax/shared_mount',
-        '/home/runner/_work/jax-ml/jax/shared_mount',
-        'pod-0',
-        'job',
-        true
-      )
       expect(copyFromPodSpy).toHaveBeenCalledWith(
         '/__w/jax-ml/jax/.github',
         '/home/runner/_work/jax-ml/jax/.github',
