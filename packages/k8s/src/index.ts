@@ -16,17 +16,16 @@ async function run(): Promise<void> {
     const command = input['command']
     const responseFile = input['responseFile']
     const state = input['state']
-    if (!(await isAuthPermissionsOK())) {
-      throw new Error(
-        `The Service account needs the following permissions ${JSON.stringify(
-          requiredPermissions
-        )} on the pod resource in the '${namespace()}' namespace. Please contact your self hosted runner administrator.`
-      )
-    }
-
     let exitCode = 0
     switch (command) {
       case Command.PrepareJob:
+        if (!(await isAuthPermissionsOK())) {
+          throw new Error(
+            `The Service account needs the following permissions ${JSON.stringify(
+              requiredPermissions
+            )} on the pod resource in the '${namespace()}' namespace. Please contact your self hosted runner administrator.`
+          )
+        }
         await prepareJob(args as prepareJobArgs, responseFile)
         return process.exit(0)
       case Command.CleanupJob:

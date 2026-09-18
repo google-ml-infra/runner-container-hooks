@@ -1,6 +1,12 @@
 ﻿import * as fs from 'fs'
 import * as forge from 'node-forge'
-import { containerPorts, POD_VOLUME_NAME } from '../src/k8s'
+import {
+  BackOffManager,
+  containerPorts,
+  isAuthPermissionsOK,
+  k8sAuthorizationV1Api,
+  POD_VOLUME_NAME
+} from '../src/k8s'
 import {
   containerVolumes,
   generateContainerName,
@@ -714,5 +720,39 @@ describe('certs', () => {
     expect(
       caCert.verify(forge.pki.certificateFromPem(certs.clientCertAndKey.cert))
     ).toBeTruthy()
+  })
+
+  describe('isAuthPermissionsOK', () => {
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('creates distinct SAR objects per permission and retries transient errors', async () => {
+      jest.spyOn(BackOffManager.prototype, 'backOff').mockResolvedValue()
+      const seenSpecs: string[] = []
+      let callCount = 0
+      jest
+        .spyOn(k8sAuthorizationV1Api, 'createSelfSubjectAccessReview')
+        .mockImplementation(async ({ body }) => {
+          callCount++
+          if (callCount === 1) {
+            throw new Error(
+              'FetchError: request to https://34.118.224.1/apis/authorization.k8s.io/v1/selfsubjectaccessreviews failed, reason: connect ETIMEDOUT 34.118.224.1:443'
+            )
+          }
+          const attr = body.spec?.resourceAttributes
+          seenSpecs.push(
+            `${attr?.group}/${attr?.resource}/${attr?.subresource}:${attr?.verb}`
+          )
+          return {
+            status: { allowed: true }
+          } as k8s.V1SelfSubjectAccessReview
+        })
+
+      const allowed = await isAuthPermissionsOK()
+      expect(allowed).toBe(true)
+      expect(callCount).toBe(18)
+      expect(new Set(seenSpecs).size).toBe(17)
+    })
   })
 })
