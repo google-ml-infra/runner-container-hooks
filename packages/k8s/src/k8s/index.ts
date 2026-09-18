@@ -36,7 +36,7 @@ kc.loadFromDefault()
 
 const k8sApi = kc.makeApiClient(k8s.CoreV1Api)
 const k8sBatchV1Api = kc.makeApiClient(k8s.BatchV1Api)
-const k8sAuthorizationV1Api = kc.makeApiClient(k8s.AuthorizationV1Api)
+export const k8sAuthorizationV1Api = kc.makeApiClient(k8s.AuthorizationV1Api)
 const k8sExec = new k8s.Exec(kc)
 const k8sCustomApi = kc.makeApiClient(k8s.CustomObjectsApi)
 
@@ -681,11 +681,30 @@ export async function getPodStatus(
   return pod.status
 }
 
+async function createSelfSubjectAccessReviewWithRetry(
+  sar: k8s.V1SelfSubjectAccessReview
+): Promise<k8s.V1SelfSubjectAccessReview> {
+  const backOffmanager = new BackOffManager(60)
+  while (true) {
+    try {
+      return await k8sAuthorizationV1Api.createSelfSubjectAccessReview({
+        body: sar
+      })
+    } catch (err) {
+      const message = extractErrorMessageFromK8sError(err)
+      core.warning(
+        `failed to create SelfSubjectAccessReview with error ${message}. Retrying`
+      )
+      await backOffmanager.backOff()
+    }
+  }
+}
+
 export async function isAuthPermissionsOK(): Promise<boolean> {
-  const sar = new k8s.V1SelfSubjectAccessReview()
   const asyncs: Promise<k8s.V1SelfSubjectAccessReview>[] = []
   for (const resource of requiredPermissions) {
     for (const verb of resource.verbs) {
+      const sar = new k8s.V1SelfSubjectAccessReview()
       sar.spec = new k8s.V1SelfSubjectAccessReviewSpec()
       sar.spec.resourceAttributes = new k8s.V1ResourceAttributes()
       sar.spec.resourceAttributes.verb = verb
@@ -693,9 +712,7 @@ export async function isAuthPermissionsOK(): Promise<boolean> {
       sar.spec.resourceAttributes.group = resource.group
       sar.spec.resourceAttributes.resource = resource.resource
       sar.spec.resourceAttributes.subresource = resource.subresource
-      asyncs.push(
-        k8sAuthorizationV1Api.createSelfSubjectAccessReview({ body: sar })
-      )
+      asyncs.push(createSelfSubjectAccessReviewWithRetry(sar))
     }
   }
   const responses = await Promise.all(asyncs)
