@@ -16,6 +16,7 @@ import {
 import {
   getEntryPointScriptContent,
   getNumberOfHost,
+  getWorkspacePaths,
   runScriptByGrpc,
   useScriptExecutor,
   writeEntryPointScript
@@ -50,7 +51,11 @@ async function runScriptStepWithGRPC(
 
   if (getNumberOfHost() > 1) {
     try {
-      return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
+      return runScriptStepInJobSet(
+        scriptContent,
+        rootCertClientAndKey,
+        args.workingDirectory
+      )
     } catch (error) {
       const message = extractErrorMessageFromK8sError(error)
       throw new Error(
@@ -88,9 +93,10 @@ async function runScriptStepWithGRPC(
   }
 }
 
-async function runScriptStepInJobSet(
+export async function runScriptStepInJobSet(
   scriptContent: string,
-  rootCertClientAndKey: MTLSCertAndPrivateKey
+  rootCertClientAndKey: MTLSCertAndPrivateKey,
+  workingDirectory?: string
 ): Promise<void> {
   const jobSetName = getJobSetName()
   if (!(await jobSetExists(jobSetName))) {
@@ -99,6 +105,9 @@ async function runScriptStepInJobSet(
 
   core.debug(`retrieving pods from JobSet ${jobSetName}`)
   const pods = await getPodsFromJobSet(jobSetName)
+
+  const { runnerWorkspace, containerWorkspace } =
+    getWorkspacePaths(workingDirectory)
 
   core.debug(`syncing runner folders to workflow pods for ${jobSetName}`)
   await Promise.all(
@@ -179,6 +188,39 @@ async function runScriptStepInJobSet(
       pods.items[0].metadata!!.name!!,
       JOB_CONTAINER_NAME
     )
+
+    if (runnerWorkspace && containerWorkspace) {
+      const headPod = pods.items[0]
+      const headPodName = headPod.metadata!!.name!!
+      const headPodIp = headPod.status!!.podIP!!
+
+      try {
+        await runScriptByGrpc(
+          `mkdir -p ${containerWorkspace}/.github`,
+          rootCertClientAndKey.caCertAndkey.cert,
+          rootCertClientAndKey.clientCertAndKey.cert,
+          rootCertClientAndKey.clientCertAndKey.privateKey,
+          headPodIp,
+          GRPC_SCRIPT_EXECUTOR_PORT,
+          undefined,
+          undefined
+        )
+
+        await copyFromPod(
+          `${containerWorkspace}/.github`,
+          `${runnerWorkspace}/.github`,
+          headPodName,
+          JOB_CONTAINER_NAME,
+          true
+        )
+      } catch (err) {
+        core.debug(
+          `failed to sync .github from workflow pod: ${extractErrorMessageFromK8sError(
+            err
+          )}`
+        )
+      }
+    }
   }
 }
 
