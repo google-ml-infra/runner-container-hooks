@@ -1005,9 +1005,17 @@ export async function copyFromPod(
   sourcePathFolder: string,
   localPath: string,
   podName: string,
-  containerName: string
+  containerName: string,
+  dereferenceSymlinks = false
 ): Promise<void> {
-  const command = ['tar', 'cf', '-', '-C', sourcePathFolder, '.']
+  const command = [
+    'tar',
+    dereferenceSymlinks ? 'chf' : 'cf',
+    '-',
+    '-C',
+    sourcePathFolder,
+    '.'
+  ]
   const errStream = new WritableStreamBuffer()
 
   if (!fs.existsSync(localPath)) {

@@ -16,7 +16,10 @@ import {
 import {
   getEntryPointScriptContent,
   getNumberOfHost,
+  getWorkspacePaths,
   runScriptByGrpc,
+  SHARED_MOUNT_BASE_DIR,
+  SHARED_MOUNT_DIR_NAME,
   useScriptExecutor,
   writeEntryPointScript
 } from '../k8s/utils'
@@ -50,7 +53,11 @@ async function runScriptStepWithGRPC(
 
   if (getNumberOfHost() > 1) {
     try {
-      return runScriptStepInJobSet(scriptContent, rootCertClientAndKey)
+      return runScriptStepInJobSet(
+        scriptContent,
+        rootCertClientAndKey,
+        args.workingDirectory
+      )
     } catch (error) {
       const message = extractErrorMessageFromK8sError(error)
       throw new Error(
@@ -88,9 +95,10 @@ async function runScriptStepWithGRPC(
   }
 }
 
-async function runScriptStepInJobSet(
+export async function runScriptStepInJobSet(
   scriptContent: string,
-  rootCertClientAndKey: MTLSCertAndPrivateKey
+  rootCertClientAndKey: MTLSCertAndPrivateKey,
+  workingDirectory?: string
 ): Promise<void> {
   const jobSetName = getJobSetName()
   if (!(await jobSetExists(jobSetName))) {
@@ -100,6 +108,9 @@ async function runScriptStepInJobSet(
   core.debug(`retrieving pods from JobSet ${jobSetName}`)
   const pods = await getPodsFromJobSet(jobSetName)
 
+  const { runnerWorkspace, containerWorkspace } =
+    getWorkspacePaths(workingDirectory)
+
   core.debug(`syncing runner folders to workflow pods for ${jobSetName}`)
   await Promise.all(
     pods.items.map(async pod => {
@@ -107,7 +118,9 @@ async function runScriptStepInJobSet(
       await syncRunnerFolderToWorkflowPod(
         pod.metadata?.name!!,
         pod.status!!.podIP!!,
-        rootCertClientAndKey
+        rootCertClientAndKey,
+        jobSetName,
+        containerWorkspace
       )
     })
   )
@@ -179,21 +192,73 @@ async function runScriptStepInJobSet(
       pods.items[0].metadata!!.name!!,
       JOB_CONTAINER_NAME
     )
+
+    if (runnerWorkspace && containerWorkspace) {
+      const headPod = pods.items[0]
+      const headPodName = headPod.metadata!!.name!!
+      const headPodIp = headPod.status!!.podIP!!
+      const sharedMountPath = `${SHARED_MOUNT_BASE_DIR}/${jobSetName}`
+
+      try {
+        await runScriptByGrpc(
+          `mkdir -p ${sharedMountPath} ${containerWorkspace}/.github && ln -sfn ${sharedMountPath} ${containerWorkspace}/${SHARED_MOUNT_DIR_NAME}`,
+          rootCertClientAndKey.caCertAndkey.cert,
+          rootCertClientAndKey.clientCertAndKey.cert,
+          rootCertClientAndKey.clientCertAndKey.privateKey,
+          headPodIp,
+          GRPC_SCRIPT_EXECUTOR_PORT,
+          undefined,
+          undefined
+        )
+
+        await copyFromPod(
+          `${containerWorkspace}/${SHARED_MOUNT_DIR_NAME}`,
+          `${runnerWorkspace}/${SHARED_MOUNT_DIR_NAME}`,
+          headPodName,
+          JOB_CONTAINER_NAME,
+          true
+        )
+
+        await copyFromPod(
+          `${containerWorkspace}/.github`,
+          `${runnerWorkspace}/.github`,
+          headPodName,
+          JOB_CONTAINER_NAME,
+          true
+        )
+      } catch (err) {
+        core.debug(
+          `failed to sync shared_mount and .github from workflow pod: ${extractErrorMessageFromK8sError(
+            err
+          )}`
+        )
+      }
+    }
   }
 }
 
-async function syncRunnerFolderToWorkflowPod(
+export async function syncRunnerFolderToWorkflowPod(
   podName: string,
   podIp: string,
-  rootCertClientAndKey: MTLSCertAndPrivateKey
+  rootCertClientAndKey: MTLSCertAndPrivateKey,
+  jobSetName?: string,
+  containerWorkspace?: string
 ): Promise<void> {
   core.debug('create folders used by GitHub Actions.')
-  const command = `
+  let command = `
 mkdir -p /github/home;
 mkdir -p /github/workflow;
 mkdir -p /__w/_temp;
 mkdir -p /__w/_actions;
 mkdir -p /__w/_tool`
+
+  if (jobSetName && containerWorkspace) {
+    const sharedMountPath = `${SHARED_MOUNT_BASE_DIR}/${jobSetName}`
+    command += `;
+mkdir -p ${sharedMountPath};
+mkdir -p ${containerWorkspace};
+ln -sfn ${sharedMountPath} ${containerWorkspace}/${SHARED_MOUNT_DIR_NAME}`
+  }
 
   await runScriptByGrpc(
     command,

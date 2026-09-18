@@ -489,3 +489,39 @@ export function getTpuRequest(createOptions: string): number {
 
   return Number(match[1])
 }
+
+export const SHARED_MOUNT_BASE_DIR = '/tmp/bap-ml-actions-ci'
+export const SHARED_MOUNT_DIR_NAME = 'shared_mount'
+
+export function getWorkspacePaths(workingDirectory?: string): {
+  runnerWorkspace?: string
+  containerWorkspace?: string
+} {
+  const githubWorkspace = process.env.GITHUB_WORKSPACE
+  if (githubWorkspace) {
+    const workMarker = '_work/'
+    const idx = githubWorkspace.lastIndexOf(workMarker)
+    if (idx !== -1) {
+      const relativeWorkspace = githubWorkspace.slice(idx + workMarker.length)
+      return {
+        runnerWorkspace: githubWorkspace,
+        containerWorkspace: `/__w/${relativeWorkspace}`
+      }
+    }
+    return {
+      runnerWorkspace: githubWorkspace,
+      containerWorkspace: workingDirectory
+    }
+  }
+  if (workingDirectory?.startsWith('/__w/')) {
+    const relativeWorkspace = workingDirectory.slice('/__w/'.length)
+    return {
+      runnerWorkspace: `/home/runner/_work/${relativeWorkspace}`,
+      containerWorkspace: workingDirectory
+    }
+  }
+  return {
+    runnerWorkspace: undefined,
+    containerWorkspace: workingDirectory
+  }
+}

@@ -17,12 +17,17 @@ import {
   ENV_HOOK_TEMPLATE_PATH,
   createScriptExecutorContainer,
   getNumberOfHost,
+  getWorkspacePaths,
   ENV_NUMBER_OF_HOSTS,
   generateServicesName,
   getEntryPointAndArgs,
   getTpuRequest
 } from '../src/k8s/utils'
 import * as k8s from '@kubernetes/client-node'
+import {
+  runScriptStepInJobSet,
+  syncRunnerFolderToWorkflowPod
+} from '../src/hooks/run-script-step'
 import { TestHelper } from './test-setup'
 import { CertCommonName, generateCert, generateCerts } from '../src/k8s/certs'
 
@@ -753,6 +758,108 @@ describe('certs', () => {
       expect(allowed).toBe(true)
       expect(callCount).toBe(18)
       expect(new Set(seenSpecs).size).toBe(17)
+    })
+  })
+
+  describe('getWorkspacePaths and JobSet shared_mount sync', () => {
+    const originalWorkspace = process.env.GITHUB_WORKSPACE
+
+    afterEach(() => {
+      if (originalWorkspace === undefined) {
+        delete process.env.GITHUB_WORKSPACE
+      } else {
+        process.env.GITHUB_WORKSPACE = originalWorkspace
+      }
+      jest.restoreAllMocks()
+    })
+
+    it('maps GITHUB_WORKSPACE on runner to /__w/<repo>/<repo> in container', () => {
+      process.env.GITHUB_WORKSPACE = '/home/runner/_work/jax-ml/jax'
+      expect(getWorkspacePaths('/__w/jax-ml/jax/subdir')).toEqual({
+        runnerWorkspace: '/home/runner/_work/jax-ml/jax',
+        containerWorkspace: '/__w/jax-ml/jax'
+      })
+    })
+
+    it('falls back to workingDirectory when GITHUB_WORKSPACE is unset', () => {
+      delete process.env.GITHUB_WORKSPACE
+      expect(getWorkspacePaths('/__w/jax-ml/jax')).toEqual({
+        runnerWorkspace: '/home/runner/_work/jax-ml/jax',
+        containerWorkspace: '/__w/jax-ml/jax'
+      })
+    })
+
+    it('provisions /tmp/bap-ml-actions-ci/<jobSetName> and symlinks shared_mount in syncRunnerFolderToWorkflowPod', async () => {
+      const utilsMod = require('../src/k8s/utils')
+      const k8sMod = require('../src/k8s')
+      const grpcSpy = jest
+        .spyOn(utilsMod, 'runScriptByGrpc')
+        .mockResolvedValue(undefined)
+      jest.spyOn(k8sMod, 'cpToPod').mockResolvedValue(undefined)
+
+      const certs = generateCerts()
+      await syncRunnerFolderToWorkflowPod(
+        'pod-0',
+        '10.0.0.1',
+        certs,
+        'runner-jobset',
+        '/__w/jax-ml/jax'
+      )
+
+      expect(grpcSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'ln -sfn /tmp/bap-ml-actions-ci/runner-jobset /__w/jax-ml/jax/shared_mount'
+        ),
+        expect.any(String),
+        expect.any(String),
+        expect.any(String),
+        '10.0.0.1',
+        expect.any(Number),
+        undefined,
+        undefined
+      )
+    })
+
+    it('copies shared_mount and .github from pod-0 with dereferenceSymlinks=true in runScriptStepInJobSet finally block', async () => {
+      process.env.GITHUB_WORKSPACE = '/home/runner/_work/jax-ml/jax'
+      const utilsMod = require('../src/k8s/utils')
+      const k8sMod = require('../src/k8s')
+
+      jest.spyOn(k8sMod, 'jobSetExists').mockResolvedValue(true)
+      jest.spyOn(k8sMod, 'getPodsFromJobSet').mockResolvedValue({
+        items: [
+          {
+            metadata: {
+              name: 'pod-0',
+              annotations: { 'batch.kubernetes.io/job-completion-index': '0' }
+            },
+            status: { podIP: '10.0.0.1' }
+          }
+        ]
+      })
+      jest.spyOn(k8sMod, 'cpToPod').mockResolvedValue(undefined)
+      jest.spyOn(utilsMod, 'runScriptByGrpc').mockResolvedValue(undefined)
+      const copyFromPodSpy = jest
+        .spyOn(k8sMod, 'copyFromPod')
+        .mockResolvedValue(undefined)
+
+      const certs = generateCerts()
+      await runScriptStepInJobSet('echo hi', certs, '/__w/jax-ml/jax')
+
+      expect(copyFromPodSpy).toHaveBeenCalledWith(
+        '/__w/jax-ml/jax/shared_mount',
+        '/home/runner/_work/jax-ml/jax/shared_mount',
+        'pod-0',
+        'job',
+        true
+      )
+      expect(copyFromPodSpy).toHaveBeenCalledWith(
+        '/__w/jax-ml/jax/.github',
+        '/home/runner/_work/jax-ml/jax/.github',
+        'pod-0',
+        'job',
+        true
+      )
     })
   })
 })
