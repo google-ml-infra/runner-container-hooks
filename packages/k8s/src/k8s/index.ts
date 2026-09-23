@@ -1053,6 +1053,16 @@ export async function copyFromPod(
       }
     }
 
+    // Attach 'error' and 'finish' listeners BEFORE calling k8sExec.exec rather than
+    // inside k8sExec.exec's completion callback:
+    // 1. k8sExec.exec streams tar output into `extract` while the remote command is running,
+    //    and only invokes its completion callback after the remote command exits.
+    // 2. If `extract` encounters an error mid-stream (e.g. EACCES) before k8sExec.exec finishes,
+    //    having no 'error' listener attached causes Node.js to crash the entire process with an
+    //    unhandled 'error' event on the Extract stream, bypassing any surrounding try/catch.
+    // 3. Similarly, if `extract` emits 'finish' upon parsing the tar EOF block before the K8s
+    //    exec status channel callback fires, registering `extract.on('finish')` inside the
+    //    callback would miss the event and hang forever.
     extract.on('error', err => {
       core.debug(`error extracting ${err}`)
       safeReject(new Error(`error extracting ${err}`))
