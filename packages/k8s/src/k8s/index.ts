@@ -1008,8 +1008,10 @@ export async function copyFromPod(
   containerName: string,
   dereferenceSymlinks = false
 ): Promise<void> {
+  const startTime = Date.now()
   const command = [
     'tar',
+    '--exclude=.git',
     dereferenceSymlinks ? 'chf' : 'cf',
     '-',
     '-C',
@@ -1021,10 +1023,46 @@ export async function copyFromPod(
   if (!fs.existsSync(localPath)) {
     fs.mkdirSync(localPath, { recursive: true })
   }
-  const extract = tar.extract(localPath)
+  const extract = tar.extract(localPath, { writable: true })
 
   core.debug(`copying files from ${sourcePathFolder} to ${localPath}`)
   await new Promise<void>(async (resolve, reject) => {
+    let settled = false
+    let extractFinished = false
+    let execCompleted = false
+
+    const safeResolve = (): void => {
+      if (!settled && extractFinished && execCompleted) {
+        settled = true
+        const elapsedMs = Date.now() - startTime
+        core.info(
+          `Synced ${sourcePathFolder} to ${localPath} in ${elapsedMs}ms`
+        )
+        resolve()
+      }
+    }
+
+    const safeReject = (err: unknown): void => {
+      if (!settled) {
+        settled = true
+        const elapsedMs = Date.now() - startTime
+        core.debug(
+          `failed copying files from ${sourcePathFolder} to ${localPath} after ${elapsedMs}ms: ${err}`
+        )
+        reject(err instanceof Error ? err : new Error(String(err)))
+      }
+    }
+
+    extract.on('error', err => {
+      core.debug(`error extracting ${err}`)
+      safeReject(new Error(`error extracting ${err}`))
+    })
+    extract.on('finish', () => {
+      core.debug(`extract finished copying `)
+      extractFinished = true
+      safeResolve()
+    })
+
     try {
       await k8sExec.exec(
         namespace(),
@@ -1041,17 +1079,11 @@ export async function copyFromPod(
             core.debug(
               `error copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${errString}`
             )
-            reject(new Error(`Error from cpToPod - details: \n ${errString}`))
+            safeReject(new Error(`Error from cpToPod - details: \n ${errString}`))
           } else {
             core.debug('wait for extraction to finish')
-            extract.on('error', err => {
-              core.debug(`error extracting ${err}`)
-              reject(new Error(`error extracting ${err}`))
-            })
-            extract.on('finish', () => {
-              core.debug(`extract finished copying `)
-              resolve()
-            })
+            execCompleted = true
+            safeResolve()
           }
         }
       )
@@ -1060,7 +1092,7 @@ export async function copyFromPod(
       core.debug(
         `error copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${message}`
       )
-      reject(error)
+      safeReject(error)
     }
   })
 }
