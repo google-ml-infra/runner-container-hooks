@@ -1012,7 +1012,7 @@ export async function copyFromPod(
   const command = [
     'tar',
     '--exclude=.git',
-    dereferenceSymlinks ? 'chf' : 'cf',
+    dereferenceSymlinks ? '-chf' : '-cf',
     '-',
     '-C',
     sourcePathFolder,
