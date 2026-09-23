@@ -1089,7 +1089,9 @@ export async function copyFromPod(
             core.debug(
               `error copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${errString}`
             )
-            safeReject(new Error(`Error from cpToPod - details: \n ${errString}`))
+            safeReject(
+              new Error(`Error from cpToPod - details: \n ${errString}`)
+            )
           } else {
             core.debug('wait for extraction to finish')
             execCompleted = true
