@@ -1008,8 +1008,10 @@ export async function copyFromPod(
   containerName: string,
   dereferenceSymlinks = false
 ): Promise<void> {
+  const startTime = Date.now()
   const command = [
     'tar',
+    '--exclude=.git',
     dereferenceSymlinks ? 'chf' : 'cf',
     '-',
     '-C',
@@ -1021,10 +1023,56 @@ export async function copyFromPod(
   if (!fs.existsSync(localPath)) {
     fs.mkdirSync(localPath, { recursive: true })
   }
-  const extract = tar.extract(localPath)
+  const extract = tar.extract(localPath, { writable: true })
 
   core.debug(`copying files from ${sourcePathFolder} to ${localPath}`)
   await new Promise<void>(async (resolve, reject) => {
+    let settled = false
+    let extractFinished = false
+    let execCompleted = false
+
+    const safeResolve = (): void => {
+      if (!settled && extractFinished && execCompleted) {
+        settled = true
+        const elapsedMs = Date.now() - startTime
+        core.info(
+          `Synced ${sourcePathFolder} to ${localPath} in ${elapsedMs}ms`
+        )
+        resolve()
+      }
+    }
+
+    const safeReject = (err: unknown): void => {
+      if (!settled) {
+        settled = true
+        const elapsedMs = Date.now() - startTime
+        core.debug(
+          `failed copying files from ${sourcePathFolder} to ${localPath} after ${elapsedMs}ms: ${err}`
+        )
+        reject(err instanceof Error ? err : new Error(String(err)))
+      }
+    }
+
+    // Attach 'error' and 'finish' listeners BEFORE calling k8sExec.exec rather than
+    // inside k8sExec.exec's completion callback:
+    // 1. k8sExec.exec streams tar output into `extract` while the remote command is running,
+    //    and only invokes its completion callback after the remote command exits.
+    // 2. If `extract` encounters an error mid-stream (e.g. EACCES) before k8sExec.exec finishes,
+    //    having no 'error' listener attached causes Node.js to crash the entire process with an
+    //    unhandled 'error' event on the Extract stream, bypassing any surrounding try/catch.
+    // 3. Similarly, if `extract` emits 'finish' upon parsing the tar EOF block before the K8s
+    //    exec status channel callback fires, registering `extract.on('finish')` inside the
+    //    callback would miss the event and hang forever.
+    extract.on('error', err => {
+      core.debug(`error extracting ${err}`)
+      safeReject(new Error(`error extracting ${err}`))
+    })
+    extract.on('finish', () => {
+      core.debug(`extract finished copying `)
+      extractFinished = true
+      safeResolve()
+    })
+
     try {
       await k8sExec.exec(
         namespace(),
@@ -1041,17 +1089,13 @@ export async function copyFromPod(
             core.debug(
               `error copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${errString}`
             )
-            reject(new Error(`Error from cpToPod - details: \n ${errString}`))
+            safeReject(
+              new Error(`Error from cpToPod - details: \n ${errString}`)
+            )
           } else {
             core.debug('wait for extraction to finish')
-            extract.on('error', err => {
-              core.debug(`error extracting ${err}`)
-              reject(new Error(`error extracting ${err}`))
-            })
-            extract.on('finish', () => {
-              core.debug(`extract finished copying `)
-              resolve()
-            })
+            execCompleted = true
+            safeResolve()
           }
         }
       )
@@ -1060,7 +1104,7 @@ export async function copyFromPod(
       core.debug(
         `error copying files from ${sourcePathFolder} to ${localPath} in pod ${podName}: ${message}`
       )
-      reject(error)
+      safeReject(error)
     }
   })
 }
