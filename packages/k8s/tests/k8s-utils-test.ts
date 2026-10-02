@@ -1,9 +1,11 @@
-﻿import * as fs from 'fs'
+import * as fs from 'fs'
 import * as forge from 'node-forge'
 import {
   BackOffManager,
+  buildJobSetPeerNetworkPolicy,
   containerPorts,
   isAuthPermissionsOK,
+  JOBSET_NAME_LABEL,
   k8sAuthorizationV1Api,
   POD_VOLUME_NAME
 } from '../src/k8s'
@@ -402,6 +404,44 @@ describe('k8s utils', () => {
     it('should return correct number of TPU requested', () => {
       expect(getTpuRequest('--tpu=4')).toEqual(4)
       expect(getTpuRequest('--nothing')).toEqual(0)
+    })
+  })
+
+  describe('buildJobSetPeerNetworkPolicy', () => {
+    const originalRunnerPodName = process.env.ACTIONS_RUNNER_POD_NAME
+    beforeEach(() => {
+      process.env.ACTIONS_RUNNER_POD_NAME = 'runner-pod'
+    })
+    afterEach(() => {
+      if (originalRunnerPodName === undefined) {
+        delete process.env.ACTIONS_RUNNER_POD_NAME
+      } else {
+        process.env.ACTIONS_RUNNER_POD_NAME = originalRunnerPodName
+      }
+    })
+
+    it('should only allow ingress from pods of the same JobSet', () => {
+      const owner: k8s.V1OwnerReference = {
+        apiVersion: 'v1',
+        kind: 'Pod',
+        name: 'runner-pod',
+        uid: 'uid-1'
+      }
+      const policy = buildJobSetPeerNetworkPolicy('jobset-abc', owner)
+      const selector = { matchLabels: { [JOBSET_NAME_LABEL]: 'jobset-abc' } }
+
+      expect(policy.metadata?.name).toBe('jobset-abc')
+      expect(policy.metadata?.ownerReferences).toEqual([owner])
+      expect(policy.spec?.podSelector).toEqual(selector)
+      expect(policy.spec?.policyTypes).toEqual(['Ingress'])
+      expect(policy.spec?.ingress).toEqual([
+        { _from: [{ podSelector: selector }] }
+      ])
+    })
+
+    it('should omit owner references when none is given', () => {
+      const policy = buildJobSetPeerNetworkPolicy('jobset-abc')
+      expect(policy.metadata?.ownerReferences).toBeUndefined()
     })
   })
 

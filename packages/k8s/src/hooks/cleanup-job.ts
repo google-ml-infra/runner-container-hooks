@@ -1,4 +1,10 @@
-import { pruneJobSet, prunePods, pruneSecrets, pruneServices } from '../k8s'
+import {
+  pruneJobSet,
+  pruneJobSetNetworkPolicy,
+  prunePods,
+  pruneSecrets,
+  pruneServices
+} from '../k8s'
 import { getJobSetName } from './constants'
 
 export async function cleanupJob(): Promise<void> {
@@ -6,6 +12,7 @@ export async function cleanupJob(): Promise<void> {
     prunePods(),
     pruneSecrets(),
     pruneServices(),
-    pruneJobSet(getJobSetName())
+    pruneJobSet(getJobSetName()),
+    pruneJobSetNetworkPolicy(getJobSetName())
   ])
 }
