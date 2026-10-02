@@ -18,6 +18,7 @@ import {
   getPrepareJobTimeoutSeconds,
   extractErrorMessageFromK8sError,
   createJobSet,
+  createJobSetNetworkPolicy,
   createPodSpec,
   getPodsFromJobSet,
   createHeadlessServiceWithRetry
@@ -210,6 +211,10 @@ async function prepareJobSet(
   const noOfHosts = getNumberOfHost()
 
   const podSpec = await createPodSpec(jobContainer, [], null, extension)
+  // Create the peer NetworkPolicy before the JobSet so workers never start
+  // without it; its selector matches nothing until the JobSet pods exist.
+  core.info(`creating NetworkPolicy ${jobSetName} for JobSet peer traffic.`)
+  await createJobSetNetworkPolicy(jobSetName)
   core.info(`creating JobSet ${jobSetName} for ${noOfHosts} hosts.`)
   await createJobSet(jobSetName, podSpec, noOfHosts, extension)
 

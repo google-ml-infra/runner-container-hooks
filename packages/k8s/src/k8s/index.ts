@@ -39,6 +39,7 @@ const k8sBatchV1Api = kc.makeApiClient(k8s.BatchV1Api)
 export const k8sAuthorizationV1Api = kc.makeApiClient(k8s.AuthorizationV1Api)
 const k8sExec = new k8s.Exec(kc)
 const k8sCustomApi = kc.makeApiClient(k8s.CustomObjectsApi)
+const k8sNetworkingApi = kc.makeApiClient(k8s.NetworkingV1Api)
 
 const DEFAULT_WAIT_FOR_POD_TIME_SECONDS = 10 * 60 // 10 min
 
@@ -1211,6 +1212,134 @@ export async function getPodsFromJobSet(jobSetName): Promise<k8s.V1PodList> {
     namespace: namespace(),
     labelSelector: selector
   })
+}
+
+export const JOBSET_NAME_LABEL = 'jobset.sigs.k8s.io/jobset-name'
+
+// Builds a NetworkPolicy that allows ingress on all ports between the pods of
+// a single JobSet. The namespace-wide workflow NetworkPolicy only admits
+// traffic from runner pods, which blocks multi-host workers from reaching each
+// other (e.g. JAX/TPU coordination ports). NetworkPolicies are additive, so
+// this only widens access for pods of this JobSet, and only from its peers.
+export function buildJobSetPeerNetworkPolicy(
+  jobSetName: string,
+  ownerReference?: k8s.V1OwnerReference
+): k8s.V1NetworkPolicy {
+  const jobSetSelector: k8s.V1LabelSelector = {
+    matchLabels: { [JOBSET_NAME_LABEL]: jobSetName }
+  }
+  const runnerLabel = new RunnerInstanceLabel()
+  return {
+    apiVersion: 'networking.k8s.io/v1',
+    kind: 'NetworkPolicy',
+    metadata: {
+      name: jobSetName,
+      labels: { [runnerLabel.key]: runnerLabel.value },
+      ownerReferences: ownerReference ? [ownerReference] : undefined
+    },
+    spec: {
+      podSelector: jobSetSelector,
+      policyTypes: ['Ingress'],
+      ingress: [{ _from: [{ podSelector: jobSetSelector }] }]
+    }
+  }
+}
+
+// Returns an owner reference to the runner pod so the NetworkPolicy is garbage
+// collected with it, even if cleanup never runs. Returns undefined (and the
+// policy is then only removed by cleanup) if the runner pod can't be read.
+async function getRunnerPodOwnerReference(): Promise<
+  k8s.V1OwnerReference | undefined
+> {
+  try {
+    const runnerPod = await k8sApi.readNamespacedPod({
+      name: getRunnerPodName(),
+      namespace: namespace()
+    })
+    if (!runnerPod.metadata?.name || !runnerPod.metadata?.uid) {
+      return undefined
+    }
+    return {
+      apiVersion: 'v1',
+      kind: 'Pod',
+      name: runnerPod.metadata.name,
+      uid: runnerPod.metadata.uid,
+      blockOwnerDeletion: false,
+      controller: false
+    }
+  } catch (err) {
+    core.warning(
+      `failed to read runner pod ${getRunnerPodName()} for NetworkPolicy owner reference: ${extractErrorMessageFromK8sError(
+        err
+      )}`
+    )
+    return undefined
+  }
+}
+
+// Creates the peer NetworkPolicy for a JobSet. A missing RBAC grant (403) is
+// downgraded to a warning so multi-host jobs that don't need peer traffic keep
+// working on clusters that haven't granted networkpolicies access yet.
+export async function createJobSetNetworkPolicy(
+  jobSetName: string
+): Promise<void> {
+  const ownerReference = await getRunnerPodOwnerReference()
+  const body = buildJobSetPeerNetworkPolicy(jobSetName, ownerReference)
+  try {
+    await k8sNetworkingApi.createNamespacedNetworkPolicy({
+      namespace: namespace(),
+      body
+    })
+    core.debug(`created NetworkPolicy ${jobSetName} for JobSet peers`)
+  } catch (err) {
+    const code = (err as any)?.code
+    if (code === 409) {
+      core.debug(`NetworkPolicy ${jobSetName} already exists`)
+      return
+    }
+    const message = extractErrorMessageFromK8sError(err)
+    if (code === 403) {
+      core.warning(
+        `not allowed to create NetworkPolicy ${jobSetName}; pods in JobSet ${jobSetName} may not be able to reach each other: ${message}`
+      )
+      return
+    }
+    throw new Error(
+      `failed to create NetworkPolicy for JobSet ${jobSetName}: ${message}`
+    )
+  }
+}
+
+export async function deleteJobSetNetworkPolicy(
+  jobSetName: string
+): Promise<void> {
+  try {
+    await k8sNetworkingApi.deleteNamespacedNetworkPolicy({
+      name: jobSetName,
+      namespace: namespace()
+    })
+    core.debug(`deleted NetworkPolicy ${jobSetName}`)
+  } catch (err) {
+    const code = (err as any)?.code
+    if (code === 404) {
+      return
+    }
+    // Best effort: the owner reference to the runner pod garbage collects it.
+    core.debug(
+      `failed to delete NetworkPolicy ${jobSetName}: ${extractErrorMessageFromK8sError(
+        err
+      )}`
+    )
+  }
+}
+
+export async function pruneJobSetNetworkPolicy(
+  jobSetName: string
+): Promise<void> {
+  if (getNumberOfHost() === 1) {
+    return
+  }
+  await deleteJobSetNetworkPolicy(jobSetName)
 }
 
 export async function createJobSet(
